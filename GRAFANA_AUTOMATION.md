@@ -42,7 +42,6 @@ SSM document that automatically imports essential Kubernetes dashboards:
 ### 3. SSM Association
 - **Target**: Bastion host (tagged with bastion name)
 - **Execution**: Runs after Prometheus installation
-- **Output**: Stored in S3 bucket under `grafana-dashboards/` prefix
 - **Parameters**:
   - Grafana Workspace ID (from Terraform output)
   - AMP Workspace Endpoint (from Terraform output)
@@ -85,9 +84,6 @@ aws ssm list-associations --region us-east-1
 aws ssm list-command-invocations \
   --details \
   --region us-east-1 | jq '.CommandInvocations[0]'
-
-# Or check S3 logs
-aws s3 ls s3://<ssm-logs-bucket>/grafana-dashboards/ --recursive
 ```
 
 ### Access Grafana:

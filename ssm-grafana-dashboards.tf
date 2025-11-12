@@ -209,13 +209,7 @@ resource "aws_ssm_association" "grafana_dashboards" {
     Region               = data.aws_region.current.name
   }
 
-  output_location {
-    s3_bucket_name = aws_s3_bucket.ssm_logs.id
-    s3_key_prefix  = "grafana-dashboards/"
-  }
-
   depends_on = [
-    aws_ssm_association.install_prometheus,
     module.envs
   ]
 }

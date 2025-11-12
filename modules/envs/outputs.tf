@@ -101,6 +101,11 @@ output "amp_workspace_arn" {
   value       = try(aws_prometheus_workspace.main[0].arn, null)
 }
 
+output "amp_workspace_endpoint" {
+  description = "Amazon Managed Prometheus workspace endpoint"
+  value       = try(aws_prometheus_workspace.main[0].prometheus_endpoint, null)
+}
+
 output "grafana_workspace_id" {
   description = "Amazon Managed Grafana workspace ID"
   value       = try(aws_grafana_workspace.main[0].id, null)

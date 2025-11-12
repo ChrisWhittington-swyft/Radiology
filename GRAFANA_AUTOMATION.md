@@ -5,13 +5,14 @@ This document outlines the automated Grafana configuration that has been added t
 
 ## Components Added
 
-### 1. Datasource Configuration (`modules/envs/monitoring.tf`)
+### 1. Datasource Configuration (via Grafana API)
 Automatically creates and configures the AMP datasource in Grafana:
-- **Resource**: `aws_grafana_workspace_data_source.amp`
+- **Method**: Grafana HTTP API (AWS provider doesn't support datasource resources)
 - **Type**: Prometheus
 - **Authentication**: SigV4 (IAM-based)
 - **Default**: Set as default datasource
 - **URL**: Automatically uses AMP workspace endpoint
+- **Execution**: Via SSM document on bastion
 
 ### 2. Dashboard Import Automation (`ssm-grafana-dashboards.tf`)
 SSM document that automatically imports essential Kubernetes dashboards:
@@ -44,6 +45,7 @@ SSM document that automatically imports essential Kubernetes dashboards:
 - **Output**: Stored in S3 bucket under `grafana-dashboards/` prefix
 - **Parameters**:
   - Grafana Workspace ID (from Terraform output)
+  - AMP Workspace Endpoint (from Terraform output)
   - AWS Region
 
 ## How It Works
@@ -51,17 +53,21 @@ SSM document that automatically imports essential Kubernetes dashboards:
 ### Terraform Apply Sequence:
 1. **Creates AMP workspace** → Amazon Managed Prometheus
 2. **Creates AMG workspace** → Amazon Managed Grafana
-3. **Creates datasource** → Wires AMG to AMP with SigV4 auth
-4. **Creates SSM document** → Dashboard import script
-5. **Creates SSM association** → Triggers dashboard import on bastion
+3. **Creates SSM document** → Datasource + Dashboard automation script
+4. **Creates SSM association** → Triggers configuration on bastion
 
-### Dashboard Import Process:
+### Configuration Process:
 1. SSM association runs on bastion after Prometheus installation
 2. Script creates temporary Grafana API key (1-hour TTL)
-3. Downloads dashboard JSON from Grafana.com for each dashboard
-4. Wraps dashboards with correct datasource mappings
-5. Imports dashboards via Grafana API
-6. Creates custom folder structure
+3. **Configures AMP datasource** via Grafana API:
+   - Sets up Prometheus datasource pointing to AMP
+   - Enables SigV4 authentication
+   - Sets as default datasource
+4. **Downloads and imports dashboards**:
+   - Fetches dashboard JSON from Grafana.com for each dashboard
+   - Wraps dashboards with correct datasource mappings
+   - Imports via Grafana API
+5. Creates "EKS Monitoring" folder for custom dashboards
 
 ## Deployment
 

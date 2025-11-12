@@ -279,22 +279,8 @@ resource "aws_ssm_parameter" "grafana_workspace_url" {
 }
 
 ############################################
-# Grafana Datasource - AMP Integration
+# Grafana Datasource Configuration
+# Note: Datasource will be configured via SSM automation
+# using the Grafana API, as Terraform AWS provider
+# does not support Grafana datasource resources
 ############################################
-
-resource "aws_grafana_workspace_data_source" "amp" {
-  count            = local.monitoring_enabled ? 1 : 0
-  workspace_id     = aws_grafana_workspace.main[0].id
-  type             = "prometheus"
-  name             = "Amazon Managed Prometheus"
-  is_default       = true
-
-  json_data {
-    http_method     = "POST"
-    sigv4_auth      = true
-    sigv4_auth_type = "default"
-    sigv4_region    = data.aws_region.current.name
-  }
-
-  url = aws_prometheus_workspace.main[0].prometheus_endpoint
-}

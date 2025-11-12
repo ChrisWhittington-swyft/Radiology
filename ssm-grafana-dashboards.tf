@@ -10,11 +10,15 @@ resource "aws_ssm_document" "grafana_dashboards" {
 
   content = yamlencode({
     schemaVersion = "2.2"
-    description   = "Configure Grafana dashboards for EKS monitoring"
+    description   = "Configure Grafana datasource and dashboards for EKS monitoring"
     parameters = {
       GrafanaWorkspaceId = {
         type        = "String"
         description = "Grafana Workspace ID"
+      }
+      AMPWorkspaceEndpoint = {
+        type        = "String"
+        description = "AMP Workspace Prometheus Endpoint"
       }
       Region = {
         type        = "String"
@@ -32,10 +36,12 @@ resource "aws_ssm_document" "grafana_dashboards" {
             "set -e",
             "",
             "GRAFANA_WORKSPACE_ID='{{ GrafanaWorkspaceId }}'",
+            "AMP_ENDPOINT='{{ AMPWorkspaceEndpoint }}'",
             "REGION='{{ Region }}'",
             "GRAFANA_ENDPOINT=\"https://$${GRAFANA_WORKSPACE_ID}.grafana-workspace.$${REGION}.amazonaws.com\"",
             "",
-            "echo \"[Grafana] Configuring dashboards for workspace: $${GRAFANA_WORKSPACE_ID}\"",
+            "echo \"[Grafana] Configuring Grafana workspace: $${GRAFANA_WORKSPACE_ID}\"",
+            "echo \"[Grafana] AMP Endpoint: $${AMP_ENDPOINT}\"",
             "",
             "# Get Grafana API key",
             "echo \"[Grafana] Creating API key for automation\"",
@@ -55,6 +61,52 @@ resource "aws_ssm_document" "grafana_dashboards" {
             "fi",
             "",
             "echo \"[Grafana] API key created successfully\"",
+            "",
+            "# Configure AMP datasource",
+            "echo \"[Grafana] Configuring AMP datasource\"",
+            "DATASOURCE_PAYLOAD=$(cat <<EOF",
+            "{",
+            "  \"name\": \"Amazon Managed Prometheus\",",
+            "  \"type\": \"prometheus\",",
+            "  \"url\": \"$${AMP_ENDPOINT}\",",
+            "  \"access\": \"proxy\",",
+            "  \"isDefault\": true,",
+            "  \"jsonData\": {",
+            "    \"httpMethod\": \"POST\",",
+            "    \"sigV4Auth\": true,",
+            "    \"sigV4AuthType\": \"default\",",
+            "    \"sigV4Region\": \"$${REGION}\"",
+            "  }",
+            "}",
+            "EOF",
+            ")",
+            "",
+            "DATASOURCE_RESPONSE=$(curl -s -X POST \\",
+            "  \"$${GRAFANA_ENDPOINT}/api/datasources\" \\",
+            "  -H \"Authorization: Bearer $${API_KEY}\" \\",
+            "  -H \"Content-Type: application/json\" \\",
+            "  -d \"$DATASOURCE_PAYLOAD\")",
+            "",
+            "if echo \"$DATASOURCE_RESPONSE\" | jq -e '.datasource.uid' > /dev/null 2>&1; then",
+            "  DATASOURCE_UID=$(echo \"$DATASOURCE_RESPONSE\" | jq -r '.datasource.uid')",
+            "  echo \"[SUCCESS] Datasource configured with UID: $${DATASOURCE_UID}\"",
+            "elif echo \"$DATASOURCE_RESPONSE\" | jq -e '.message' | grep -q 'already exists'; then",
+            "  echo \"[INFO] Datasource already exists, updating...\"",
+            "  # Get existing datasource UID",
+            "  EXISTING_DS=$(curl -s -X GET \\",
+            "    \"$${GRAFANA_ENDPOINT}/api/datasources/name/Amazon%20Managed%20Prometheus\" \\",
+            "    -H \"Authorization: Bearer $${API_KEY}\")",
+            "  DATASOURCE_UID=$(echo \"$EXISTING_DS\" | jq -r '.uid')",
+            "  # Update it",
+            "  curl -s -X PUT \\",
+            "    \"$${GRAFANA_ENDPOINT}/api/datasources/uid/$${DATASOURCE_UID}\" \\",
+            "    -H \"Authorization: Bearer $${API_KEY}\" \\",
+            "    -H \"Content-Type: application/json\" \\",
+            "    -d \"$DATASOURCE_PAYLOAD\" > /dev/null",
+            "  echo \"[SUCCESS] Datasource updated\"",
+            "else",
+            "  echo \"[WARNING] Datasource configuration returned: $DATASOURCE_RESPONSE\"",
+            "fi",
             "",
             "# Function to import dashboard",
             "import_dashboard() {",
@@ -152,8 +204,9 @@ resource "aws_ssm_association" "grafana_dashboards" {
   }
 
   parameters = {
-    GrafanaWorkspaceId = module.envs[local.primary_env].grafana_workspace_id
-    Region             = data.aws_region.current.name
+    GrafanaWorkspaceId   = module.envs[local.primary_env].grafana_workspace_id
+    AMPWorkspaceEndpoint = module.envs[local.primary_env].amp_workspace_endpoint
+    Region               = data.aws_region.current.name
   }
 
   output_location {

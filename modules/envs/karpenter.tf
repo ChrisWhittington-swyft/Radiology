@@ -319,13 +319,6 @@ resource "aws_ec2_tag" "karpenter_private_subnets" {
   value       = module.eks.cluster_name
 }
 
-resource "aws_ec2_tag" "karpenter_node_sg" {
-  count       = local.karpenter_enabled ? 1 : 0
-  resource_id = module.eks.node_security_group_id
-  key         = "karpenter.sh/discovery"
-  value       = module.eks.cluster_name
-}
-
 # ============================================
 # SSM Parameters for Karpenter Configuration
 # ============================================

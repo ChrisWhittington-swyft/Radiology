@@ -135,7 +135,7 @@ resource "aws_ssm_document" "grafana_dashboards" {
             "    -H \"Content-Type: application/json\" \\",
             "    -d @\"$${TEMP_FILE}\")",
             "  ",
-            "  rm -f \"$${TEMP_FILE}\""
+            "  rm -f \"$${TEMP_FILE}\"",
             "  ",
             "  if echo \"$IMPORT_RESPONSE\" | jq -e '.uid' > /dev/null 2>&1; then",
             "    echo \"[SUCCESS] Dashboard $${DASHBOARD_NAME} imported successfully\"",

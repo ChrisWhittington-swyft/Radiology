@@ -9,7 +9,6 @@ locals {
     Component = "Monitoring"
     Project   = "EKS-Monitoring"
   })
-  eks_oidc_provider_host = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
 }
 
 ############################################

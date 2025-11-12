@@ -4,8 +4,7 @@
 # ============================================
 
 resource "aws_ssm_document" "grafana_dashboards" {
-  count           = local.monitoring_enabled ? 1 : 0
-  name            = "${local.name_prefix}-grafana-dashboards"
+  name            = "${lower(local.effective_tenant)}-${local.primary_env}-grafana-dashboards"
   document_type   = "Command"
   document_format = "YAML"
 
@@ -186,28 +185,27 @@ resource "aws_ssm_document" "grafana_dashboards" {
     ]
   })
 
-  tags = merge(
-    local.tags,
-    {
-      Name      = "${local.name_prefix}-grafana-dashboards"
-      Component = "Monitoring"
-    }
-  )
+  tags = {
+    Tenant   = local.effective_tenant
+    Env      = local.primary_env
+    Name     = "${lower(local.effective_tenant)}-${local.primary_env}-grafana-dashboards"
+    Component = "Monitoring"
+  }
 }
 
 resource "aws_ssm_association" "grafana_dashboards" {
-  count = local.monitoring_enabled ? 1 : 0
-  name  = aws_ssm_document.grafana_dashboards[0].name
+  count = local.karpenter_enabled ? 1 : 0
+  name  = aws_ssm_document.grafana_dashboards.name
 
   targets {
     key    = "tag:Name"
-    values = [local.bastion_name]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
   }
 
   parameters = {
     GrafanaWorkspaceId   = module.envs[local.primary_env].grafana_workspace_id
     AMPWorkspaceEndpoint = module.envs[local.primary_env].amp_workspace_endpoint
-    Region               = data.aws_region.current.name
+    Region               = local.effective_region
   }
 
   depends_on = [

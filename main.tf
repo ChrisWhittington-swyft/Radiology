@@ -20,6 +20,11 @@ provider "aws" {
   profile = "Radiology"
 }
 
+# DATA SOURCES
+# ------------
+
+data "aws_region" "current" {}
+
 # DNS account (aliased)
 provider "aws" {
   alias   = "dns"
@@ -127,7 +132,7 @@ locals {
 locals {
   effective_tenant = coalesce(var.tenant_name, local.global_config.tenant_name)
   effective_region = coalesce(var.region, local.global_config.region)
-  
+
   # Check if Karpenter is enabled in the primary environment
   karpenter_enabled = try(local.environments[local.primary_env].karpenter.enabled, false)
   # keep in sync with compatibility matrix
@@ -135,6 +140,24 @@ locals {
     local.environments[local.primary_env].karpenter.version,
     "1.8.1"
   )
+
+  # Check if monitoring is enabled in the primary environment
+  monitoring_enabled = try(local.environments[local.primary_env].monitoring.enabled, true)
+
+  # Bastion instance name tag
+  bastion_name = "${lower(local.effective_tenant)}-${local.effective_region}-bastion"
+
+  # Common naming prefix for root-level resources
+  name_prefix = lower("${local.effective_tenant}-${local.primary_env}")
+
+  # Common tags for root-level resources
+  tags = {
+    Tenant    = local.effective_tenant
+    Region    = local.effective_region
+    Env       = local.primary_env
+    Terraform = "true"
+    ManagedBy = "Terraform"
+  }
 }
 
 

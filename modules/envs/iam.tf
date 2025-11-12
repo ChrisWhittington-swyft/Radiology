@@ -83,6 +83,41 @@ resource "aws_iam_role_policy" "bastion_ps_write" {
   })
 }
 
+resource "aws_iam_role_policy" "bastion_grafana" {
+  count = var.enable_bastion ? 1 : 0
+  name  = "${local.name_prefix}-bastion-grafana"
+  role  = aws_iam_role.bastion_ssm[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "grafana:CreateWorkspaceApiKey",
+          "grafana:DeleteWorkspaceApiKey",
+          "grafana:DescribeWorkspace",
+          "grafana:ListWorkspaces",
+          "grafana:UpdateWorkspace",
+          "grafana:CreateWorkspaceServiceAccount",
+          "grafana:CreateWorkspaceServiceAccountToken"
+        ],
+        Resource = "arn:aws:grafana:${var.region}:${var.account_id}:/workspaces/*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "aps:DescribeWorkspace",
+          "aps:GetMetricMetadata",
+          "aps:ListWorkspaces",
+          "aps:QueryMetrics"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 
 resource "aws_iam_role_policy_attachment" "bastion_ssm_core" {
   count      = var.enable_bastion ? 1 : 0

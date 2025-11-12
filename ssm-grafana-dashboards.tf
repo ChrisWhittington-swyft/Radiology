@@ -200,13 +200,13 @@ resource "aws_ssm_association" "grafana_dashboards" {
 
   targets {
     key    = "tag:Name"
-    values = [local.bastion_name]
+    values = "${lower(local.effective_tenant)}-${local.effective_region}-bastion"
   }
 
   parameters = {
     GrafanaWorkspaceId   = module.envs[local.primary_env].grafana_workspace_id
     AMPWorkspaceEndpoint = module.envs[local.primary_env].amp_workspace_endpoint
-    Region               = data.aws_region.current.name
+    Region               = local.effective_region
   }
 
   depends_on = [

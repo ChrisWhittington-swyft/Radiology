@@ -54,10 +54,15 @@ locals {
       ai_mock_mode          = "false"
       spring_ai_enabled     = "true"
     }
+     # Monitoring Settings (Amazon Managed Prometheus + Grafana)
+  monitoring = {
+      enabled = true
+    }
+
      # Karpenter Settings
   karpenter = {
       enabled = true
-      
+
       # Interruption queue name (will be prefixed with cluster name)
       interruption_queue_name = "karpenter"
       

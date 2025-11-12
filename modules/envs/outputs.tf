@@ -80,3 +80,43 @@ output "karpenter_enabled" {
   description = "Whether Karpenter is enabled for this environment"
   value       = local.karpenter_enabled
 }
+
+output "cluster_oidc_issuer_url" {
+  description = "The OIDC issuer URL for the cluster"
+  value       = module.eks.oidc_provider
+}
+
+output "cluster_oidc_issuer_arn" {
+  description = "The OIDC issuer ARN for the cluster"
+  value       = module.eks.oidc_provider_arn
+}
+
+output "amp_workspace_id" {
+  description = "Amazon Managed Prometheus workspace ID"
+  value       = try(aws_prometheus_workspace.main[0].id, null)
+}
+
+output "amp_workspace_arn" {
+  description = "Amazon Managed Prometheus workspace ARN"
+  value       = try(aws_prometheus_workspace.main[0].arn, null)
+}
+
+output "grafana_workspace_id" {
+  description = "Amazon Managed Grafana workspace ID"
+  value       = try(aws_grafana_workspace.main[0].id, null)
+}
+
+output "grafana_workspace_endpoint" {
+  description = "Amazon Managed Grafana workspace endpoint URL"
+  value       = try(aws_grafana_workspace.main[0].endpoint, null)
+}
+
+output "amp_ingestion_role_arn" {
+  description = "IAM role ARN for Prometheus ingestion"
+  value       = try(aws_iam_role.amp_ingestion[0].arn, null)
+}
+
+output "monitoring_enabled" {
+  description = "Whether monitoring is enabled for this environment"
+  value       = local.monitoring_enabled
+}

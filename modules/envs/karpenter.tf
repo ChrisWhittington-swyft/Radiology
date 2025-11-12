@@ -309,17 +309,6 @@ resource "aws_cloudwatch_event_target" "karpenter_instance_state_change" {
 }
 
 # ============================================
-# Subnet and Security Group Tags for Karpenter Discovery
-# ============================================
-
-resource "aws_ec2_tag" "karpenter_private_subnets" {
-  for_each    = local.karpenter_enabled ? toset(var.private_subnet_ids) : []
-  resource_id = each.value
-  key         = "karpenter.sh/discovery"
-  value       = module.eks.cluster_name
-}
-
-# ============================================
 # SSM Parameters for Karpenter Configuration
 # ============================================
 

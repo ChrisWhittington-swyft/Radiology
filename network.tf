@@ -73,10 +73,7 @@ resource "aws_subnet" "private_subnet_1" {
   tags = {
     Name                              = "private-subnet-1"
     "kubernetes.io/role/internal-elb" = "1"
-  }
-
-  lifecycle {
-    ignore_changes = [tags["karpenter.sh/discovery"]]
+    "karpenter.sh/discovery"          = "${lower(var.tenant_name)}-prod-eks"
   }
 }
 
@@ -94,10 +91,7 @@ resource "aws_subnet" "private_subnet_2" {
   tags = {
     Name                              = "private-subnet-2"
     "kubernetes.io/role/internal-elb" = "1"
-  }
-
-  lifecycle {
-    ignore_changes = [tags["karpenter.sh/discovery"]]
+    "karpenter.sh/discovery"          = "${lower(var.tenant_name)}-prod-eks"
   }
 }
 

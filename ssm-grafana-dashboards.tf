@@ -4,7 +4,7 @@
 # ============================================
 
 resource "aws_ssm_document" "grafana_dashboards" {
-  name            = "${local.name_prefix}-grafana-dashboards"
+  name            = "${lower(local.effective_tenant)}-${local.primary_env}-grafana-dashboards"
   document_type   = "Command"
   document_format = "YAML"
 
@@ -23,7 +23,7 @@ resource "aws_ssm_document" "grafana_dashboards" {
       Region = {
         type        = "String"
         description = "AWS Region"
-        default     = data.aws_region.current.name
+        default     = local.effective_region
       }
     }
     mainSteps = [
@@ -188,7 +188,7 @@ resource "aws_ssm_document" "grafana_dashboards" {
   tags = merge(
     local.tags,
     {
-      Name      = "${local.name_prefix}-grafana-dashboards"
+      Name      = "${lower(local.effective_tenant)}-${local.primary_env}-grafana-dashboards"
       Component = "Monitoring"
     }
   )
@@ -215,7 +215,7 @@ resource "aws_ssm_association" "grafana_dashboards" {
   }
 
   depends_on = [
-    aws_ssm_association.prometheus_install,
+    aws_ssm_association.install_prometheus,
     module.envs
   ]
 }

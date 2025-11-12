@@ -73,7 +73,7 @@ resource "aws_subnet" "private_subnet_1" {
   tags = {
     Name                              = "private-subnet-1"
     "kubernetes.io/role/internal-elb" = "1"
-    "karpenter.sh/discovery"          = "${lower(var.tenant_name)}-prod-eks"
+    "karpenter.sh/discovery"          = "${lower(local.effective_tenant)}-${local.primary_env}-eks"
   }
 }
 
@@ -91,7 +91,7 @@ resource "aws_subnet" "private_subnet_2" {
   tags = {
     Name                              = "private-subnet-2"
     "kubernetes.io/role/internal-elb" = "1"
-    "karpenter.sh/discovery"          = "${lower(var.tenant_name)}-prod-eks"
+    "karpenter.sh/discovery"          = "${lower(local.effective_tenant)}-${local.primary_env}-eks"
   }
 }
 

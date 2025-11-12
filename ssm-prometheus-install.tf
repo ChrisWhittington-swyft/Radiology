@@ -82,6 +82,9 @@ resource "aws_ssm_document" "install_prometheus" {
 
             "cat > /tmp/prometheus-values.yaml <<HELM_EOF",
             "prometheus:",
+            "  serviceAccount:",
+            "    create: false",
+            "    name: amp-collector",
             "  prometheusSpec:",
             "    serviceAccountName: amp-collector",
             "    remoteWrite:",

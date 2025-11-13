@@ -1,5 +1,5 @@
 ############################################
-# SSM Document: Install Prometheus in EKS
+# SSM Document: Install Self-Hosted Monitoring Stack
 ############################################
 
 resource "aws_ssm_document" "install_prometheus" {
@@ -9,7 +9,7 @@ resource "aws_ssm_document" "install_prometheus" {
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Install Prometheus and configure remote write to Amazon Managed Prometheus"
+    description   = "Install self-hosted Prometheus, Grafana, AlertManager, and YACE CloudWatch exporter"
 
     parameters = {
       Region = {
@@ -25,9 +25,9 @@ resource "aws_ssm_document" "install_prometheus" {
     mainSteps = [
       {
         action = "aws:runShellScript"
-        name   = "InstallPrometheus"
+        name   = "InstallMonitoringStack"
         inputs = {
-          timeoutSeconds = 600
+          timeoutSeconds = 900
           runCommand = [
             "#!/bin/bash",
             "set -Eeuo pipefail",
@@ -41,65 +41,24 @@ resource "aws_ssm_document" "install_prometheus" {
             "export KUBECONFIG=/root/.kube/config",
             "export AWS_REGION=\"$REGION\" AWS_DEFAULT_REGION=\"$REGION\"",
 
-            "echo \"[Prometheus] Starting installation...\"",
+            "echo \"[Monitoring] Starting self-hosted monitoring stack installation...\"",
 
             "aws eks update-kubeconfig --name \"$CLUSTER_NAME\" --region \"$REGION\" --kubeconfig \"$KUBECONFIG\"",
-            "kubectl get ns kube-system 1>/dev/null 2>&1 || { echo \"[Prometheus] ERROR: cannot reach cluster\"; exit 1; }",
+            "kubectl get ns kube-system 1>/dev/null 2>&1 || { echo \"[Monitoring] ERROR: cannot reach cluster\"; exit 1; }",
 
-            "BASE_SSM_PATH=\"/eks/$CLUSTER_NAME/monitoring\"",
-            "AMP_WORKSPACE_ID=$(aws ssm get-parameter --name \"$BASE_SSM_PATH/amp_workspace_id\" --query \"Parameter.Value\" --output text || true)",
-            "AMP_INGESTION_ROLE_ARN=$(aws ssm get-parameter --name \"$BASE_SSM_PATH/amp_ingestion_role_arn\" --query \"Parameter.Value\" --output text || true)",
-
-            "if [ -z \"$AMP_WORKSPACE_ID\" ] || [ -z \"$AMP_INGESTION_ROLE_ARN\" ]; then",
-            "  echo \"[Prometheus] ERROR: Missing monitoring SSM parameters\"",
-            "  echo \"  amp_workspace_id: $AMP_WORKSPACE_ID\"",
-            "  echo \"  amp_ingestion_role_arn: $AMP_INGESTION_ROLE_ARN\"",
-            "  exit 1",
-            "fi",
-
-            "AMP_ENDPOINT=\"https://aps-workspaces.$REGION.amazonaws.com/workspaces/$AMP_WORKSPACE_ID\"",
-            "echo \"[Prometheus] AMP Workspace: $AMP_WORKSPACE_ID\"",
-            "echo \"[Prometheus] AMP Endpoint: $AMP_ENDPOINT\"",
-            "echo \"[Prometheus] Ingestion Role: $AMP_INGESTION_ROLE_ARN\"",
-
-            "echo \"[Prometheus] Creating monitoring namespace\"",
+            "echo \"[Monitoring] Creating monitoring namespace\"",
             "kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -",
 
-            "echo \"[Prometheus] Creating service account with IRSA\"",
-            "cat <<SA_EOF | kubectl apply -f -",
-            "apiVersion: v1",
-            "kind: ServiceAccount",
-            "metadata:",
-            "  name: amp-collector",
-            "  namespace: monitoring",
-            "  annotations:",
-            "    eks.amazonaws.com/role-arn: $AMP_INGESTION_ROLE_ARN",
-            "SA_EOF",
-
-            "echo \"[Prometheus] Installing kube-prometheus-stack via Helm\"",
+            "echo \"[Monitoring] Adding Helm repositories\"",
             "helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true",
             "helm repo update",
 
-            "cat > /tmp/prometheus-values.yaml <<HELM_EOF",
+            "echo \"[Monitoring] Creating kube-prometheus-stack values file\"",
+            "cat > /tmp/prometheus-values.yaml <<'HELM_EOF'",
             "prometheus:",
-            "  serviceAccount:",
-            "    create: false",
-            "    name: amp-collector",
             "  prometheusSpec:",
-            "    serviceAccountName: amp-collector",
-            "    remoteWrite:",
-            "    - url: $AMP_ENDPOINT/api/v1/remote_write",
-            "      sigv4:",
-            "        region: $REGION",
-            "      queueConfig:",
-            "        capacity: 10000",
-            "        maxShards: 200",
-            "        minShards: 1",
-            "        maxSamplesPerSend: 1000",
-            "        batchSendDeadline: 5s",
-            "        minBackoff: 30ms",
-            "        maxBackoff: 5s",
-            "    retention: 6h",
+            "    retention: 30d",
+            "    retentionSize: 45GB",
             "    resources:",
             "      requests:",
             "        cpu: 500m",
@@ -114,20 +73,88 @@ resource "aws_ssm_document" "install_prometheus" {
             "          resources:",
             "            requests:",
             "              storage: 50Gi",
+            "    additionalScrapeConfigs:",
+            "    - job_name: yace-cloudwatch",
+            "      static_configs:",
+            "      - targets:",
+            "        - yace-exporter.monitoring.svc.cluster.local:5000",
+            "",
             "grafana:",
-            "  enabled: false",
+            "  enabled: true",
+            "  adminPassword: changeme-$(openssl rand -hex 12)",
+            "  persistence:",
+            "    enabled: true",
+            "    size: 10Gi",
+            "  grafana.ini:",
+            "    server:",
+            "      root_url: https://monitoring.yourdomain.com",
+            "    auth.anonymous:",
+            "      enabled: false",
+            "    security:",
+            "      allow_embedding: false",
+            "  service:",
+            "    type: ClusterIP",
+            "  ingress:",
+            "    enabled: false",
+            "",
             "alertmanager:",
             "  enabled: true",
+            "  config:",
+            "    global:",
+            "      resolve_timeout: 5m",
+            "    route:",
+            "      group_by: ['alertname', 'cluster', 'service']",
+            "      group_wait: 10s",
+            "      group_interval: 10s",
+            "      repeat_interval: 12h",
+            "      receiver: 'sns-webhook'",
+            "    receivers:",
+            "    - name: 'sns-webhook'",
+            "      webhook_configs:",
+            "      - url: 'http://alertmanager-sns-forwarder.monitoring.svc.cluster.local:8080/alert'",
+            "        send_resolved: true",
+            "",
+            "defaultRules:",
+            "  create: true",
+            "  rules:",
+            "    alertmanager: true",
+            "    etcd: false",
+            "    configReloaders: true",
+            "    general: true",
+            "    k8s: true",
+            "    kubeApiserverAvailability: true",
+            "    kubeApiserverSlos: false",
+            "    kubelet: true",
+            "    kubeProxy: false",
+            "    kubePrometheusGeneral: true",
+            "    kubePrometheusNodeRecording: true",
+            "    kubernetesApps: true",
+            "    kubernetesResources: true",
+            "    kubernetesStorage: true",
+            "    kubernetesSystem: true",
+            "    kubeScheduler: false",
+            "    kubeStateMetrics: true",
+            "    network: true",
+            "    node: true",
+            "    nodeExporterAlerting: true",
+            "    nodeExporterRecording: true",
+            "    prometheus: true",
+            "    prometheusOperator: true",
             "HELM_EOF",
 
+            "echo \"[Monitoring] Installing kube-prometheus-stack\"",
             "helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \\",
             "  --namespace monitoring \\",
             "  --values /tmp/prometheus-values.yaml \\",
-            "  --wait --timeout 10m",
+            "  --wait --timeout 15m",
 
-            "echo \"[Prometheus] Installation complete\"",
-            "kubectl -n monitoring get pods",
-            "echo \"[Prometheus] Remote write configured to: $AMP_ENDPOINT\""
+            "GRAFANA_PASSWORD=$(kubectl get secret -n monitoring prometheus-grafana -o jsonpath='{.data.admin-password}' | base64 -d)",
+            "echo \"[Monitoring] Grafana admin password: $GRAFANA_PASSWORD\"",
+            "echo \"[Monitoring] Storing password in SSM\"",
+            "aws ssm put-parameter --name \"/eks/$CLUSTER_NAME/monitoring/grafana_password\" --value \"$GRAFANA_PASSWORD\" --type \"SecureString\" --overwrite || true",
+
+            "echo \"[Monitoring] kube-prometheus-stack installation complete\"",
+            "kubectl -n monitoring get pods"
           ]
         }
       }

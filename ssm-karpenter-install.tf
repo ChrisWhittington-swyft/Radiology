@@ -132,8 +132,10 @@ resource "aws_ssm_document" "install_karpenter" {
             "  --set settings.interruptionQueue=\"$${QUEUE_NAME}\" \\",
             "  --set-string serviceAccount.annotations.'eks\\.amazonaws\\.com/role-arn'=\"$CONTROLLER_ROLE_ARN\" \\",
             "  --set settings.isolatedVPC=true \\",
+            "  --set serviceMonitor.enabled=true \\",
+            "  --set serviceMonitor.additionalLabels.release=prometheus \\",
             "  --wait",
-            "echo \"[Karpenter] Installation complete.\""
+            "echo \"[Karpenter] Installation complete with metrics enabled.\""
           ]
         }
       }

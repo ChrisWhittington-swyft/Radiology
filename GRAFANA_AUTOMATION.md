@@ -18,23 +18,30 @@ Automatically creates and configures the AMP datasource in Grafana:
 SSM document that automatically imports essential Kubernetes dashboards:
 
 #### Dashboards Imported:
-1. **Kubernetes Cluster Monitoring** (ID: 7249)
-   - Overall cluster health and resource usage
 
-2. **Kubernetes Pod Monitoring** (ID: 6417)
-   - Per-pod metrics and resource consumption
+**Kubernetes Core Dashboards** (dotdc/grafana-dashboards-kubernetes):
+- **Kubernetes / Views / Global** (ID: 15757) - Cluster-wide resource overview
+- **Kubernetes / Views / Namespaces** (ID: 15758) - Per-namespace metrics
+- **Kubernetes / Views / Nodes** (ID: 15759) - Node-level resource utilization
+- **Kubernetes / Views / Pods** (ID: 15760) - Pod-level metrics and status
 
-3. **Node Exporter Full** (ID: 1860)
-   - Detailed node-level system metrics
+**System Components**:
+- **Kubernetes / System / API Server** (ID: 15761) - API server performance and health
+- **Kubernetes / System / CoreDNS** (ID: 15762) - CoreDNS metrics and health
 
-4. **Kubernetes API Server** (ID: 12006)
-   - API server performance and health
+**Prometheus Monitoring**:
+- **Prometheus** (ID: 19105) - Prometheus server health and performance
 
-5. **Kubernetes System API Server** (ID: 15761)
-   - System-level API metrics
+**Karpenter Autoscaling** (2024 dashboards):
+- **Kubernetes / Autoscaling / Karpenter / Overview** (ID: 22171) - Karpenter overview
+- **Kubernetes / Autoscaling / Karpenter / Activity** (ID: 22172) - Node creation/deletion activity
+- **Kubernetes / Autoscaling / Karpenter / Performance** (ID: 22173) - Karpenter performance metrics
 
-6. **Kubernetes Deployment/StatefulSet/DaemonSet** (ID: 8588)
-   - Workload-specific metrics
+**Node Metrics**:
+- **Node Exporter Full** (ID: 1860) - Detailed node-level system metrics
+
+**Cluster Overview**:
+- **Kubernetes Cluster (Prometheus)** (ID: 6417) - Overall cluster health and resource usage
 
 #### Custom Folder:
 - Creates "EKS Monitoring" folder for custom dashboards

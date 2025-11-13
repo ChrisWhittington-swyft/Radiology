@@ -283,4 +283,12 @@ resource "aws_ssm_parameter" "grafana_workspace_url" {
 # Note: Datasource will be configured via SSM automation
 # using the Grafana API, as Terraform AWS provider
 # does not support Grafana datasource resources
+#
+# ADMIN ACCESS:
+# To get admin permissions in Grafana, assign yourself via AWS Console:
+# 1. Go to Amazon Managed Grafana console
+# 2. Select your workspace
+# 3. Go to "Authentication" tab → "AWS IAM Identity Center"
+# 4. Click "Assign new user or group"
+# 5. Select your SSO user and assign "Admin" role
 ############################################

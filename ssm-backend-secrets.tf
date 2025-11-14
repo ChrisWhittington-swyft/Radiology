@@ -11,7 +11,7 @@ resource "aws_ssm_document" "backend_secret" {
       ClusterName       = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
       DbSecretArn       = { type = "String", default = module.envs[local.primary_env].db_secret_arn }
       DbWriterEndpoint  = { type = "String", default = module.envs[local.primary_env].db_writer_endpoint }
-      KafkaServer       = { type = "String", default = local.backend_cfg.kafka_server }
+      KafkaServer       = { type = "String", default = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server) }
       SmsSid            = { type = "String", default = local.backend_cfg.sms_account_sid_value }
       SmsTok            = { type = "String", default = local.backend_cfg.sms_auth_token_value }
       SmsPhone          = { type = "String", default = local.backend_cfg.sms_phone_number }
@@ -152,7 +152,7 @@ resource "aws_ssm_association" "backend_secret_now" {
     ClusterName      = module.envs[local.primary_env].eks_cluster_name
     DbSecretArn      = module.envs[local.primary_env].db_secret_arn
     DbWriterEndpoint = module.envs[local.primary_env].db_writer_endpoint
-    KafkaServer      = local.backend_cfg.kafka_server
+    KafkaServer      = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server)
     SmsSid           = local.backend_cfg.sms_account_sid_value
     SmsTok           = local.backend_cfg.sms_auth_token_value
     SmsPhone         = local.backend_cfg.sms_phone_number

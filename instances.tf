@@ -59,6 +59,11 @@ locals {
       enabled = true
     }
 
+     # Kafka Settings (MSK Serverless)
+  kafka = {
+      enabled = true
+    }
+
      # Karpenter Settings
   karpenter = {
       enabled = true

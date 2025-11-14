@@ -125,3 +125,18 @@ output "monitoring_enabled" {
   description = "Whether monitoring is enabled for this environment"
   value       = local.monitoring_enabled
 }
+
+output "kafka_bootstrap_servers" {
+  description = "MSK Serverless bootstrap servers (IAM auth)"
+  value       = try(aws_msk_serverless_cluster.main[0].bootstrap_brokers_sasl_iam, null)
+}
+
+output "kafka_cluster_arn" {
+  description = "MSK Serverless cluster ARN"
+  value       = try(aws_msk_serverless_cluster.main[0].arn, null)
+}
+
+output "kafka_enabled" {
+  description = "Whether Kafka is enabled for this environment"
+  value       = local.kafka_enabled
+}

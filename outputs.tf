@@ -29,3 +29,13 @@ output "karpenter_node_instance_profiles" {
   description = "Karpenter node instance profiles per environment"
   value       = { for k, m in module.envs : k => m.karpenter_node_instance_profile if m.karpenter_enabled }
 }
+
+output "kafka_bootstrap_servers" {
+  description = "MSK Serverless bootstrap servers per environment"
+  value       = { for k, m in module.envs : k => m.kafka_bootstrap_servers if m.kafka_enabled }
+}
+
+output "kafka_cluster_arns" {
+  description = "MSK Serverless cluster ARNs per environment"
+  value       = { for k, m in module.envs : k => m.kafka_cluster_arn if m.kafka_enabled }
+}

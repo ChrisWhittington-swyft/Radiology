@@ -9,3 +9,9 @@ locals {
     ManagedBy = "Terraform"
   }
 }
+
+# Generate encryption secret for backend
+resource "random_password" "encryption_secret" {
+  length  = 32
+  special = true
+}

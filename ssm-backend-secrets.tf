@@ -24,6 +24,7 @@ resource "aws_ssm_document" "backend_secret" {
       SpringAiEnabled   = { type = "String", default = local.backend_cfg.spring_ai_enabled }
       RedisAuthParam    = { type = "String", default = module.envs[local.primary_env].redis_auth_param_name }
       RedisUrlParam     = { type = "String", default = module.envs[local.primary_env].redis_url_param_name }
+      EncryptionSecret  = { type = "String", default = module.envs[local.primary_env].encryption_secret }
 
     },
     mainSteps = [
@@ -51,6 +52,7 @@ resource "aws_ssm_document" "backend_secret" {
             "TEST_MODE='{{ TestMode }}'",
             "AI_MOCK='{{ AiMockMode }}'",
             "SPRING_AI='{{ SpringAiEnabled }}'",
+            "ENCRYPTION_SECRET='{{ EncryptionSecret }}'",
 
             # Kubeconfig
             "export HOME=/root",
@@ -130,6 +132,7 @@ resource "aws_ssm_document" "backend_secret" {
             "  --from-literal=REDIS_PASSWORD=\"$${REDIS_PASS}\" \\",
             "  --from-literal=REDIS_PORT=\"$${REDIS_PORT}\" \\",
             "  --from-literal=REDIS_SSL=\"$${REDIS_SSL}\" \\",
+            "  --from-literal=ENCRYPTION_SECRET=\"$${ENCRYPTION_SECRET}\" \\",
             "  --dry-run=client -o yaml | kubectl apply -f -",
             "echo 'Created/updated Secret default/vytalmed-backend-secrets'",
           ]
@@ -165,6 +168,7 @@ resource "aws_ssm_association" "backend_secret_now" {
     SpringAiEnabled  = local.backend_cfg.spring_ai_enabled
     RedisAuthParam = module.envs[local.primary_env].redis_auth_param_name
     RedisUrlParam  = module.envs[local.primary_env].redis_url_param_name
+    EncryptionSecret = module.envs[local.primary_env].encryption_secret
   }
 
   depends_on = [

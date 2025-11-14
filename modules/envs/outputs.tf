@@ -140,3 +140,9 @@ output "kafka_enabled" {
   description = "Whether Kafka is enabled for this environment"
   value       = local.kafka_enabled
 }
+
+output "encryption_secret" {
+  description = "Random encryption secret for backend application"
+  value       = random_password.encryption_secret.result
+  sensitive   = true
+}

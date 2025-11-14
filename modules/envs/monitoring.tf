@@ -329,6 +329,11 @@ data "aws_iam_policy_document" "yace_policy" {
       "rds:DescribeDBInstances",
       "rds:DescribeDBClusters",
       "rds:ListTagsForResource",
+      "kafka:ListClusters",
+      "kafka:ListClustersV2",
+      "kafka:DescribeCluster",
+      "kafka:DescribeClusterV2",
+      "kafka:ListTagsForResource",
       "tag:GetResources"
     ]
     resources = ["*"]

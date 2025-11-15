@@ -146,8 +146,3 @@ output "encryption_secret" {
   value       = random_password.encryption_secret.result
   sensitive   = true
 }
-
-output "backend_irsa_role_arn" {
-  description = "IAM role ARN for backend service account (IRSA)"
-  value       = aws_iam_role.backend.arn
-}

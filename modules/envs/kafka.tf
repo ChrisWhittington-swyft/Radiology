@@ -164,7 +164,7 @@ resource "aws_iam_policy" "kafka_client" {
 
 resource "aws_iam_role_policy_attachment" "eks_nodes_kafka" {
   count      = local.kafka_enabled ? 1 : 0
-  role       = module.eks.eks_managed_node_groups["main"].iam_role_name
+  role       = module.eks.eks_managed_node_groups["${local.name_prefix}-nodes"].iam_role_name
   policy_arn = aws_iam_policy.kafka_client[0].arn
 }
 

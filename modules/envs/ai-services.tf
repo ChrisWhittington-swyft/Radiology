@@ -36,7 +36,7 @@ resource "aws_iam_policy" "textract" {
 }
 
 resource "aws_iam_role_policy_attachment" "eks_nodes_textract" {
-  role       = module.eks.eks_managed_node_groups["main"].iam_role_name
+  role       = module.eks.eks_managed_node_groups["${local.name_prefix}-nodes"].iam_role_name
   policy_arn = aws_iam_policy.textract.arn
 }
 
@@ -82,6 +82,6 @@ resource "aws_iam_policy" "bedrock" {
 }
 
 resource "aws_iam_role_policy_attachment" "eks_nodes_bedrock" {
-  role       = module.eks.eks_managed_node_groups["main"].iam_role_name
+  role       = module.eks.eks_managed_node_groups["${local.name_prefix}-nodes"].iam_role_name
   policy_arn = aws_iam_policy.bedrock.arn
 }

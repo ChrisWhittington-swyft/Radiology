@@ -175,3 +175,8 @@ variable "backend_secret_key_param_arn" {
   type    = string
   default = null
 }
+
+variable "backend_s3_bucket" {
+  type        = string
+  description = "S3 bucket name for backend application"
+}

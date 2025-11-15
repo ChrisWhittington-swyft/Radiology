@@ -72,6 +72,7 @@ module "envs" {
   # IAM
   backend_access_key_param_arn = aws_ssm_parameter.backend_access_key_id.arn
   backend_secret_key_param_arn = aws_ssm_parameter.backend_secret_access_key.arn
+  backend_s3_bucket            = each.value.backend.s3_bucket
 
 
 

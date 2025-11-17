@@ -25,16 +25,19 @@ spec:
           env:
             - name: HEADLAMP_CONFIG_OIDC_CLIENT_ID
               valueFrom:
-                configMapKeyRef:
-                  name: headlamp-config
-                  key: config.json
+                secretKeyRef:
+                  name: headlamp-oidc
+                  key: clientId
             - name: HEADLAMP_CONFIG_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: headlamp-oidc
                   key: clientSecret
             - name: HEADLAMP_CONFIG_OIDC_ISSUER_URL
-              value: "https://login.microsoftonline.com/TENANT_ID_PLACEHOLDER/v2.0"
+              valueFrom:
+                secretKeyRef:
+                  name: headlamp-oidc
+                  key: issuerUrl
             - name: HEADLAMP_CONFIG_OIDC_SCOPES
               value: "openid profile email"
           livenessProbe:

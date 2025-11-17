@@ -55,7 +55,8 @@ data "aws_iam_policy_document" "bedrock" {
       "bedrock:ListFoundationModels"
     ]
     resources = [
-      "arn:aws:bedrock:*::foundation-model/*"
+      "arn:aws:bedrock:*:*:foundation-model/*",
+      "arn:aws:bedrock:*:*:inference-profile/*"
     ]
   }
 

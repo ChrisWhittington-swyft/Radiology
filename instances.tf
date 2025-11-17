@@ -54,13 +54,6 @@ locals {
       ai_mock_mode          = "false"
       spring_ai_enabled     = "true"
     }
-
-      # Headlamp (K8s Dashboard)
-    headlamp = {
-      cognito_secret_arn = ""  # ARN of Cognito client secret in Secrets Manager
-      cognito_client_id  = ""  # Cognito App Client ID
-      cognito_issuer_url = ""  # e.g., https://cognito-idp.us-east-1.amazonaws.com/<pool-id>
-    }
      # Monitoring Settings (Amazon Managed Prometheus + Grafana)
   monitoring = {
       enabled = true

@@ -25,6 +25,9 @@ resource "aws_ssm_document" "backend_secret" {
       RedisAuthParam    = { type = "String", default = module.envs[local.primary_env].redis_auth_param_name }
       RedisUrlParam     = { type = "String", default = module.envs[local.primary_env].redis_url_param_name }
       EncryptionSecret  = { type = "String", default = module.envs[local.primary_env].encryption_secret }
+      CognitoSecretArn  = { type = "String", default = "" }
+      CognitoClientId   = { type = "String", default = "" }
+      CognitoIssuerUrl  = { type = "String", default = "" }
 
     },
     mainSteps = [
@@ -53,6 +56,9 @@ resource "aws_ssm_document" "backend_secret" {
             "AI_MOCK='{{ AiMockMode }}'",
             "SPRING_AI='{{ SpringAiEnabled }}'",
             "ENCRYPTION_SECRET='{{ EncryptionSecret }}'",
+            "COGNITO_SECRET_ARN='{{ CognitoSecretArn }}'",
+            "COGNITO_CLIENT_ID='{{ CognitoClientId }}'",
+            "COGNITO_ISSUER_URL='{{ CognitoIssuerUrl }}'",
 
             # Kubeconfig
             "export HOME=/root",
@@ -135,6 +141,21 @@ resource "aws_ssm_document" "backend_secret" {
             "  --from-literal=ENCRYPTION_SECRET=\"$${ENCRYPTION_SECRET}\" \\",
             "  --dry-run=client -o yaml | kubectl apply -f -",
             "echo 'Created/updated Secret default/vytalmed-backend-secrets'",
+            "",
+            "# Headlamp OIDC secret (Cognito)",
+            "echo \"[Headlamp] Creating/updating headlamp-oidc secret...\"",
+            "if [ -n \"$${COGNITO_SECRET_ARN}\" ] && [ -n \"$${COGNITO_CLIENT_ID}\" ] && [ -n \"$${COGNITO_ISSUER_URL}\" ]; then",
+            "  COGNITO_CLIENT_SECRET=$(aws secretsmanager get-secret-value --secret-id \"$${COGNITO_SECRET_ARN}\" --query SecretString --output text)",
+            "  kubectl get ns headlamp 2>/dev/null || kubectl create ns headlamp",
+            "  kubectl -n headlamp create secret generic headlamp-oidc \\",
+            "    --from-literal=clientSecret=\"$${COGNITO_CLIENT_SECRET}\" \\",
+            "    --from-literal=clientId=\"$${COGNITO_CLIENT_ID}\" \\",
+            "    --from-literal=issuerUrl=\"$${COGNITO_ISSUER_URL}\" \\",
+            "    --dry-run=client -o yaml | kubectl apply -f -",
+            "  echo '[Headlamp] Created/updated Secret headlamp/headlamp-oidc'",
+            "else",
+            "  echo '[Headlamp] Skipping headlamp-oidc secret (Cognito params not provided)'",
+            "fi",
           ]
         }
       }
@@ -166,15 +187,19 @@ resource "aws_ssm_association" "backend_secret_now" {
     TestMode         = local.backend_cfg.test_mode
     AiMockMode       = local.backend_cfg.ai_mock_mode
     SpringAiEnabled  = local.backend_cfg.spring_ai_enabled
-    RedisAuthParam = module.envs[local.primary_env].redis_auth_param_name
-    RedisUrlParam  = module.envs[local.primary_env].redis_url_param_name
+    RedisAuthParam   = module.envs[local.primary_env].redis_auth_param_name
+    RedisUrlParam    = module.envs[local.primary_env].redis_url_param_name
     EncryptionSecret = module.envs[local.primary_env].encryption_secret
+    CognitoSecretArn = aws_secretsmanager_secret.headlamp_cognito.arn
+    CognitoClientId  = aws_cognito_user_pool_client.headlamp.id
+    CognitoIssuerUrl = "https://cognito-idp.${local.effective_region}.amazonaws.com/${aws_cognito_user_pool.headlamp.id}"
   }
 
   depends_on = [
     aws_ssm_parameter.backend_access_key_id,
     aws_ssm_parameter.backend_secret_access_key,
-    aws_ssm_association.install_argocd_now,   # argo installed
-    aws_ssm_association.argocd_ingress_now,   # ingress is up
+    aws_ssm_association.install_argocd_now,      # argo installed
+    aws_ssm_association.argocd_ingress_now,      # ingress is up
+    aws_secretsmanager_secret_version.headlamp_cognito,  # cognito secret ready
   ]
 }

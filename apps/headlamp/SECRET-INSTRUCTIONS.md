@@ -1,89 +1,53 @@
-# Headlamp AWS Cognito Setup Instructions
+# Headlamp AWS Cognito Setup
 
-This secret is created automatically via the SSM document `ssm-headlamp-install.tf`.
+The Cognito User Pool, App Client, and Kubernetes secret are **automatically created by Terraform**.
 
-## AWS Cognito Setup (One-time):
+## What Terraform Does Automatically:
 
-### 1. Create a Cognito User Pool
+1. **Creates Cognito User Pool** (`cognito-headlamp.tf`):
+   - Pool name: `vytalmed-prod-headlamp`
+   - Configured for email-based login
+   - Password policy enforced
 
-```bash
-aws cognito-idp create-user-pool \
-  --pool-name headlamp-users \
-  --policies "PasswordPolicy={MinimumLength=8,RequireUppercase=true,RequireLowercase=true,RequireNumbers=true,RequireSymbols=false}" \
-  --auto-verified-attributes email \
-  --username-attributes email \
-  --region us-east-1
-```
+2. **Creates Cognito User Pool Domain**:
+   - Domain: `vytalmed-headlamp.auth.us-east-1.amazoncognito.com`
 
-**Note the User Pool ID** (e.g., `us-east-1_ABC123XYZ`)
+3. **Creates App Client**:
+   - Name: `headlamp`
+   - Generates client secret automatically
+   - OAuth callback: `https://headlamp.prod.vytalmed.app/oidc-callback`
 
-### 2. Create a Cognito User Pool Domain
+4. **Stores Client Secret in Secrets Manager**:
+   - Secret name: `vytalmed-prod-headlamp-cognito-secret`
 
-```bash
-aws cognito-idp create-user-pool-domain \
-  --domain headlamp-vytalmed \
-  --user-pool-id us-east-1_ABC123XYZ \
-  --region us-east-1
-```
+5. **SSM Document Creates K8s Secret** (`ssm-backend-secrets.tf`):
+   - Runs on bastion after `terraform apply`
+   - Creates `headlamp/headlamp-oidc` secret with:
+     - `clientSecret`
+     - `clientId`
+     - `issuerUrl`
 
-### 3. Create an App Client
+## What You Need to Do:
 
-```bash
-aws cognito-idp create-user-pool-client \
-  --user-pool-id us-east-1_ABC123XYZ \
-  --client-name headlamp \
-  --generate-secret \
-  --allowed-o-auth-flows code \
-  --allowed-o-auth-scopes openid profile email \
-  --callback-urls https://headlamp.ria-poc.nymbl.host/oidc-callback \
-  --allowed-o-auth-flows-user-pool-client \
-  --supported-identity-providers COGNITO \
-  --region us-east-1
-```
-
-**Note the following from the output:**
-- `ClientId`
-- `ClientSecret`
-
-### 4. Store the Client Secret in AWS Secrets Manager
-
-```bash
-aws secretsmanager create-secret \
-  --name headlamp/cognito-client-secret \
-  --secret-string 'YOUR_CLIENT_SECRET_HERE' \
-  --region us-east-1
-```
-
-**Note the ARN** (e.g., `arn:aws:secretsmanager:us-east-1:123456789012:secret:headlamp/cognito-client-secret-AbCdEf`)
-
-### 5. Update Terraform Configuration
-
-Edit `instances.tf` and update the `headlamp` block in the `prod` environment:
-
-```hcl
-headlamp = {
-  cognito_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:headlamp/cognito-client-secret-AbCdEf"
-  cognito_client_id  = "YOUR_CLIENT_ID_HERE"
-  cognito_issuer_url = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123XYZ"
-}
-```
-
-### 6. Apply Terraform
+### 1. Apply Terraform
 
 ```bash
 terraform apply
 ```
 
-This will:
-- Create the SSM document `headlamp-create-secret`
-- Run it on the bastion to create the K8s secret `headlamp/headlamp-oidc`
-- Secret will contain: `clientSecret`, `clientId`, `issuerUrl`
+This creates everything automatically.
 
-### 7. Create a Test User
+### 2. Create Users in Cognito
+
+You need to manually create users who can access Headlamp:
 
 ```bash
+# Get the User Pool ID from Terraform output
+POOL_ID=$(terraform output -raw headlamp_cognito_user_pool_id)
+
+# Create an admin user
 aws cognito-idp admin-create-user \
-  --user-pool-id us-east-1_ABC123XYZ \
+  --user-pool-id "$POOL_ID" \
   --username admin@yourcompany.com \
   --user-attributes Name=email,Value=admin@yourcompany.com Name=email_verified,Value=true \
   --temporary-password TempPass123! \
@@ -92,25 +56,72 @@ aws cognito-idp admin-create-user \
 
 The user will be prompted to change their password on first login.
 
-## Access Headlamp
+### 3. Access Headlamp
 
-Once deployed via ArgoCD:
+Once ArgoCD deploys Headlamp:
 
-1. Navigate to `https://headlamp.ria-poc.nymbl.host`
+1. Navigate to `https://headlamp.prod.vytalmed.app`
 2. Click "Sign in with OIDC"
 3. Log in with your Cognito credentials
 
+## Terraform Outputs
+
+View Cognito details:
+
+```bash
+terraform output headlamp_cognito_user_pool_id
+terraform output headlamp_cognito_client_id
+terraform output headlamp_cognito_issuer_url
+terraform output headlamp_cognito_secret_arn
+```
+
 ## Troubleshooting
 
-### Check if secret exists:
+### Check if K8s secret exists:
 ```bash
 kubectl -n headlamp get secret headlamp-oidc -o yaml
+```
+
+### View secret values:
+```bash
+kubectl -n headlamp get secret headlamp-oidc -o jsonpath='{.data.clientId}' | base64 -d
+kubectl -n headlamp get secret headlamp-oidc -o jsonpath='{.data.issuerUrl}' | base64 -d
 ```
 
 ### Re-run the SSM document manually:
 ```bash
 aws ssm send-command \
-  --document-name "headlamp-create-secret" \
+  --document-name "backend-create-secret" \
   --targets "Key=tag:Name,Values=vytalmed-us-east-1-bastion" \
   --region us-east-1
 ```
+
+### Check SSM document execution:
+```bash
+# Get command ID from send-command output
+aws ssm get-command-invocation \
+  --command-id <command-id> \
+  --instance-id <instance-id> \
+  --region us-east-1
+```
+
+### List Cognito users:
+```bash
+POOL_ID=$(terraform output -raw headlamp_cognito_user_pool_id)
+aws cognito-idp list-users --user-pool-id "$POOL_ID" --region us-east-1
+```
+
+### Delete a user:
+```bash
+aws cognito-idp admin-delete-user \
+  --user-pool-id "$POOL_ID" \
+  --username admin@yourcompany.com \
+  --region us-east-1
+```
+
+## Notes
+
+- The SSM document (`backend-create-secret`) handles **both** backend secrets AND headlamp secrets
+- If Cognito params are empty, it skips creating the headlamp secret (no errors)
+- The callback URL is automatically set based on your app domain
+- Users must verify their email on first login (temporary password flow)

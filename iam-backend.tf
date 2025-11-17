@@ -30,6 +30,74 @@ resource "aws_iam_user_policy" "backend_s3" {
   policy = data.aws_iam_policy_document.backend_s3.json
 }
 
+############################################
+# AI Services (Textract & Bedrock)
+############################################
+
+data "aws_iam_policy_document" "backend_textract" {
+  statement {
+    sid    = "TextractAccess"
+    effect = "Allow"
+    actions = [
+      "textract:AnalyzeDocument",
+      "textract:AnalyzeExpense",
+      "textract:AnalyzeID",
+      "textract:DetectDocumentText",
+      "textract:StartDocumentAnalysis",
+      "textract:StartDocumentTextDetection",
+      "textract:StartExpenseAnalysis",
+      "textract:GetDocumentAnalysis",
+      "textract:GetDocumentTextDetection",
+      "textract:GetExpenseAnalysis"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_user_policy" "backend_textract" {
+  name   = "${lower(local.effective_tenant)}-${local.primary_env}-backend-textract"
+  user   = aws_iam_user.backend_app.name
+  policy = data.aws_iam_policy_document.backend_textract.json
+}
+
+data "aws_iam_policy_document" "backend_bedrock" {
+  statement {
+    sid    = "BedrockModelAccess"
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+      "bedrock:GetFoundationModel",
+      "bedrock:ListFoundationModels"
+    ]
+    resources = [
+      "arn:aws:bedrock:*::foundation-model/*",
+      "arn:aws:bedrock:*:*:inference-profile/*",
+      "arn:aws:bedrock:*:*:foundation-model/*"
+    ]
+  }
+
+  statement {
+    sid    = "BedrockAgentsKB"
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeAgent",
+      "bedrock:Retrieve",
+      "bedrock:RetrieveAndGenerate"
+    ]
+    resources = [
+      "arn:aws:bedrock:*:*:agent/*",
+      "arn:aws:bedrock:*:*:knowledge-base/*"
+    ]
+  }
+}
+
+resource "aws_iam_user_policy" "backend_bedrock" {
+  name   = "${lower(local.effective_tenant)}-${local.primary_env}-backend-bedrock"
+  user   = aws_iam_user.backend_app.name
+  policy = data.aws_iam_policy_document.backend_bedrock.json
+}
+
 # Access key for the app (sensitive)
 resource "aws_iam_access_key" "backend_app" {
   user = aws_iam_user.backend_app.name

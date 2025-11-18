@@ -91,12 +91,14 @@ module "envs" {
   serverlessv2_max_capacity_acus = each.value.max_acus
 
   # Global
-  tenant_name         = local.effective_tenant
-  account_id          = local.global_config.account_id
-  alerts_email        = local.global_config.alerts_email
-  company_vpn_cidr    = local.global_config.company_vpn_cidr
-  enable_slack_alerts = local.global_config.enable_slack_alerts
-  slack_hook_uri      = local.global_config.slack_hook_uri
+  tenant_name            = local.effective_tenant
+  account_id             = local.global_config.account_id
+  alerts_email           = local.global_config.alerts_email
+  company_vpn_cidr       = local.global_config.company_vpn_cidr
+  datavysta_richard_ips  = local.global_config.datavysta_richard_ips
+  bastion_keypair        = lookup(each.value, "bastion_keypair", null)
+  enable_slack_alerts    = local.global_config.enable_slack_alerts
+  slack_hook_uri         = local.global_config.slack_hook_uri
 
   # Per-env map
   env_config = local.environments

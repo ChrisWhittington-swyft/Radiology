@@ -9,6 +9,7 @@ locals {
     slack_hook_uri      = "https://hooks.slack.com/services/XXX/YYY/ZZZ"
     elb_security_policy = "ELBSecurityPolicy-TLS13-1-2-Res-2021-06"
     company_vpn_cidr    = "34.227.217.58/32"
+    datavysta_richard_ips = ["174.83.106.220/32", "44.214.39.32/32"]
     sso_admin_role_arn  =  "arn:aws:iam::084134273524:role/PlaceHolderRole"
   }
 
@@ -31,6 +32,7 @@ locals {
 
       # app host subdomain for this env
       app_subdomain     = "prod"
+      bastion_keypair   = "vytalmed-bastion-prod"
 
       # ArgoCD per-env
     argocd = {

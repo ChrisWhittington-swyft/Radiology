@@ -39,3 +39,18 @@ output "kafka_cluster_arns" {
   description = "MSK Serverless cluster ARNs per environment"
   value       = { for k, m in module.envs : k => m.kafka_cluster_arn if m.kafka_enabled }
 }
+
+output "bastion_windows_instance_ids" {
+  description = "Windows bastion instance IDs per environment"
+  value       = { for k, m in module.envs : k => m.bastion_windows_instance_id if m.bastion_windows_instance_id != null }
+}
+
+output "bastion_windows_private_ips" {
+  description = "Windows bastion private IPs per environment"
+  value       = { for k, m in module.envs : k => m.bastion_windows_private_ip if m.bastion_windows_private_ip != null }
+}
+
+output "bastion_windows_public_ips" {
+  description = "Windows bastion public IPs per environment"
+  value       = { for k, m in module.envs : k => m.bastion_windows_public_ip if m.bastion_windows_public_ip != null }
+}

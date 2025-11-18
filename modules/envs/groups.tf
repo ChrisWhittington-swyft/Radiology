@@ -10,15 +10,38 @@ resource "aws_security_group" "bastion" {
   })
 }
 
-# Create the SSH rule only if a VPN CIDR is provided
+# SSH rule from Company VPN
 resource "aws_vpc_security_group_ingress_rule" "bastion_ssh" {
   count             = var.company_vpn_cidr == null ? 0 : 1
   security_group_id = aws_security_group.bastion.id
-  description       = "Company VPN"
+  description       = "SSH from Company VPN"
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22
   cidr_ipv4         = var.company_vpn_cidr
+}
+
+# RDP rule from Company VPN
+resource "aws_vpc_security_group_ingress_rule" "bastion_rdp" {
+  count             = var.company_vpn_cidr == null ? 0 : 1
+  security_group_id = aws_security_group.bastion.id
+  description       = "RDP from Company VPN"
+  ip_protocol       = "tcp"
+  from_port         = 3389
+  to_port           = 3389
+  cidr_ipv4         = var.company_vpn_cidr
+}
+
+# RDP rules from DataVysta Richard IPs
+resource "aws_vpc_security_group_ingress_rule" "bastion_rdp_datavysta" {
+  for_each = { for idx, cidr in var.datavysta_richard_ips : idx => cidr }
+
+  security_group_id = aws_security_group.bastion.id
+  description       = "RDP from DataVysta Richard ${each.key + 1}"
+  ip_protocol       = "tcp"
+  from_port         = 3389
+  to_port           = 3389
+  cidr_ipv4         = each.value
 }
 
 # Egress (allow all) as a standalone rule

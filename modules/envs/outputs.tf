@@ -50,6 +50,27 @@ output "bastion_public_ip" {
   description = "Bastion public IP (only if bastion_public=true)"
 }
 
+output "bastion_windows_instance_id" {
+  value       = try(aws_instance.bastion_windows[0].id, null)
+  description = "Windows bastion instance ID"
+}
+
+output "bastion_windows_private_ip" {
+  value       = try(aws_instance.bastion_windows[0].private_ip, null)
+  description = "Windows bastion private IP"
+}
+
+output "bastion_windows_public_ip" {
+  value       = var.bastion_public ? try(aws_instance.bastion_windows[0].public_ip, null) : null
+  description = "Windows bastion public IP (only if bastion_public=true)"
+}
+
+output "bastion_windows_password" {
+  value       = try(rsadecrypt(aws_instance.bastion_windows[0].password_data, file("~/.ssh/${var.bastion_keypair}.pem")), null)
+  description = "Decrypted Windows bastion Administrator password (requires keypair private key)"
+  sensitive   = true
+}
+
 output "eks_cluster_name" {
   value       = module.eks.cluster_name  # terraform-aws-eks module output
   description = "EKS cluster name"

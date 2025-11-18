@@ -41,6 +41,12 @@ variable "bastion_public" {
   default     = false # true => public IP + place in public subnet
 }
 
+variable "bastion_keypair" {
+  type        = string
+  default     = null
+  description = "EC2 key pair name for SSH/RDP access to bastion hosts"
+}
+
 # SSO - optional
 
 variable "sso_admin_role_arn" {
@@ -113,6 +119,12 @@ variable "company_vpn_cidr" {
   type        = string
   description = "CIDR block for company VPN IP"
   default     = null
+}
+
+variable "datavysta_richard_ips" {
+  type        = list(string)
+  description = "List of CIDR blocks for DataVysta Richard's access"
+  default     = []
 }
 
 variable "enabled_environments" {

@@ -6,6 +6,13 @@ data "aws_ssm_parameter" "al2023_ami" {
 }
 
 ########################
+# AMI (Windows Server 2022 latest)
+########################
+data "aws_ssm_parameter" "windows_2022_ami" {
+  name = "/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base"
+}
+
+########################
 # Current Region
 ########################
 data "aws_region" "current" {}

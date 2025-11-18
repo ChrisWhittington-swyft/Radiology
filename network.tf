@@ -13,6 +13,9 @@ resource "aws_vpc" "terraform_vpc" {
 
   enable_dns_hostnames = true
   enable_dns_support   = true
+
+  # Wait for K8s cleanup before destroying VPC
+  depends_on = [time_sleep.wait_for_k8s_cleanup]
 }
 
 # Get AZs

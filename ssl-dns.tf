@@ -31,6 +31,9 @@ resource "aws_acm_certificate" "wildcard" {
     create_before_destroy = true
   }
 
+  # Wait for K8s cleanup before destroying cert (LBs may be using it)
+  depends_on = [time_sleep.wait_for_k8s_cleanup]
+
   tags = {
     Name      = "wildcard-${local.global_config.base_domain}"
     ManagedBy = "Terraform"

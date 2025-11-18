@@ -64,16 +64,18 @@ resource "aws_ssm_document" "create_dockerhub_secret" {
 }
 
 resource "aws_ssm_association" "create_dockerhub_secret_now" {
+  for_each = module.envs
+
   name = aws_ssm_document.create_dockerhub_secret.name
 
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    ClusterName = each.value.eks_cluster_name
     Namespace   = "default"
     SecretName  = "docker-hub-secret"
   }

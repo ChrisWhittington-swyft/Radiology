@@ -70,11 +70,14 @@ resource "aws_subnet" "private_subnet_1" {
 
   availability_zone = element(data.aws_availability_zones.AZs.names, 2)
 
-  tags = {
+  tags = merge({
     Name                              = "private-subnet-1"
     "kubernetes.io/role/internal-elb" = "1"
-    "karpenter.sh/discovery"          = "${lower(local.effective_tenant)}-${local.primary_env}-eks"
-  }
+  },
+  # Add Karpenter discovery tags for all enabled environments
+  { for env in local.enabled_environments :
+    "karpenter.sh/discovery/${lower(local.effective_tenant)}-${env}-eks" => "true"
+  })
 }
 
 # private subnet 2
@@ -88,11 +91,14 @@ resource "aws_subnet" "private_subnet_2" {
 
   availability_zone = element(data.aws_availability_zones.AZs.names, 3)
 
-  tags = {
+  tags = merge({
     Name                              = "private-subnet-2"
     "kubernetes.io/role/internal-elb" = "1"
-    "karpenter.sh/discovery"          = "${lower(local.effective_tenant)}-${local.primary_env}-eks"
-  }
+  },
+  # Add Karpenter discovery tags for all enabled environments
+  { for env in local.enabled_environments :
+    "karpenter.sh/discovery/${lower(local.effective_tenant)}-${env}-eks" => "true"
+  })
 }
 
 # internet gateway

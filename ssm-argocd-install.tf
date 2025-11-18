@@ -9,7 +9,7 @@ content = jsonencode({
   description   = "Install Argo CD via Helm (HTTP service; TLS terminates at NLB).",
   parameters = {
     Region      = { type = "String", default = local.effective_region }
-    ClusterName = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
+    ClusterName = { type = "String", default = "" }
     Namespace   = { type = "String", default = "argocd" }
   },
   mainSteps = [
@@ -93,16 +93,18 @@ content = jsonencode({
 
 
 resource "aws_ssm_association" "install_argocd_now" {
+  for_each = module.envs
+
   name = aws_ssm_document.install_argocd.name
 
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    ClusterName = each.value.eks_cluster_name
     Namespace   = "argocd"
   }
 

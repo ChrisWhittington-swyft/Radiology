@@ -150,19 +150,21 @@ resource "aws_ssm_document" "bootstrap_ingress" {
 }
 
 resource "aws_ssm_association" "bootstrap_ingress_now" {
+  for_each = module.envs
+
   name = aws_ssm_document.bootstrap_ingress.name
 
   # 👇 Target by tag so replacement instances get picked up automatically
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    ClusterName = each.value.eks_cluster_name
     AcmArn      = aws_acm_certificate.wildcard.arn
-    AppHost     = local.app_host
+    AppHost     = "${local.environments[each.key].app_subdomain}.${local.base_domain}"
     Namespace   = "ingress-nginx"
   }
 

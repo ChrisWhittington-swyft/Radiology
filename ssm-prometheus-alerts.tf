@@ -231,17 +231,18 @@ resource "aws_ssm_document" "prometheus_alerts" {
 }
 
 resource "aws_ssm_association" "prometheus_alerts" {
-  count = local.karpenter_enabled ? 1 : 0
-  name  = aws_ssm_document.prometheus_alerts[0].name
+  for_each = { for k, v in module.envs : k => v if try(local.environments[k].karpenter.enabled, false) }
+
+  name = aws_ssm_document.prometheus_alerts[0].name
 
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    ClusterName = each.value.eks_cluster_name
   }
 
   depends_on = [

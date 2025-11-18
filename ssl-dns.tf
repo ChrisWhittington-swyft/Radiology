@@ -1,11 +1,15 @@
 resource "time_sleep" "wait_for_bootstrap" {
+  for_each = module.envs
+
   depends_on      = [aws_ssm_association.bootstrap_ingress_now]
   create_duration = "120s"
 }
 
 data "aws_ssm_parameter" "ingress_nlb" {
+  for_each = module.envs
+
   depends_on = [time_sleep.wait_for_bootstrap]
-  name       = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
+  name       = "/eks/${each.value.eks_cluster_name}/ingress_nlb_hostname"
 }
 
 
@@ -59,27 +63,29 @@ resource "aws_acm_certificate_validation" "wildcard" {
 }
 
 
-# ArgoCD host → NLB
+# ArgoCD host → NLB (shared, points to primary env for now)
 resource "aws_route53_record" "argocd" {
   provider = aws.dns
   zone_id  = data.aws_route53_zone.vytalmed.zone_id
-  name     = local.argocd_host         # e.g., argocd-dev.vytalmed.app or argocd.vytalmed.app
+  name     = local.argocd_host         # e.g., argocd.vytalmed.app
   type     = "CNAME"
   ttl      = 60
-  records  = [data.aws_ssm_parameter.ingress_nlb.value]
+  records  = [data.aws_ssm_parameter.ingress_nlb[local.primary_env].value]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.argocd_ingress_now]
 }
 
-# Prod front-end → NLB
-resource "aws_route53_record" "subdomain-prod" {
+# Per-environment app subdomains → their respective NLBs
+resource "aws_route53_record" "app_subdomain" {
+  for_each = module.envs
+
   provider = aws.dns
   zone_id  = data.aws_route53_zone.vytalmed.zone_id
-  name     = local.environments[local.primary_env].app_subdomain         # e.g., prod.vytalmed.app
+  name     = local.environments[each.key].app_subdomain         # e.g., prod.vytalmed.app, dev.vytalmed.app
   type     = "CNAME"
   ttl      = 60
-  records  = [data.aws_ssm_parameter.ingress_nlb.value]
+  records  = [data.aws_ssm_parameter.ingress_nlb[each.key].value]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.backend_secret_now]

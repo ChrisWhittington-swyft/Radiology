@@ -118,21 +118,23 @@ resource "aws_ssm_document" "argocd_wireup" {
 }
 
 resource "aws_ssm_association" "argocd_wireup_now" {
+  for_each = module.envs
+
   name = aws_ssm_document.argocd_wireup.name
 
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region       = local.effective_region
-    ClusterName  = module.envs[local.primary_env].eks_cluster_name
-    RepoURL      = local.environments[local.primary_env].argocd.repo_url
-    RepoUsername = local.environments[local.primary_env].argocd.repo_username
-    RepoPatParam = local.environments[local.primary_env].argocd.repo_pat_param_name
-    AppPath      = local.environments[local.primary_env].argocd.app_of_apps_path
-    Project      = local.environments[local.primary_env].argocd.project
+    ClusterName  = each.value.eks_cluster_name
+    RepoURL      = local.environments[each.key].argocd.repo_url
+    RepoUsername = local.environments[each.key].argocd.repo_username
+    RepoPatParam = local.environments[each.key].argocd.repo_pat_param_name
+    AppPath      = local.environments[each.key].argocd.app_of_apps_path
+    Project      = local.environments[each.key].argocd.project
     Namespace    = "argocd"
   }
 

@@ -149,19 +149,20 @@ resource "aws_ssm_document" "install_karpenter" {
 ############################################
 
 resource "aws_ssm_association" "install_karpenter_now" {
-  count = local.karpenter_enabled ? 1 : 0
-  name  = aws_ssm_document.install_karpenter[0].name
+  for_each = { for k, v in module.envs : k => v if try(local.environments[k].karpenter.enabled, false) }
+
+  name = aws_ssm_document.install_karpenter[0].name
 
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.global_config.tenant_name)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.global_config.tenant_name)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region      = local.global_config.region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    ClusterName = each.value.eks_cluster_name
     Namespace   = "karpenter"
-    Version     = local.karpenter_version
+    Version     = try(local.environments[each.key].karpenter.version, "1.8.1")
   }
 
   depends_on = [

@@ -164,32 +164,34 @@ resource "aws_ssm_document" "backend_secret" {
 }
 
 resource "aws_ssm_association" "backend_secret_now" {
+  for_each = module.envs
+
   name = aws_ssm_document.backend_secret.name
 
   targets {
     key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    values = ["${lower(local.effective_tenant)}-${local.effective_region}-${each.key}-bastion"]
   }
 
   parameters = {
     Region           = local.effective_region
-    ClusterName      = module.envs[local.primary_env].eks_cluster_name
-    DbSecretArn      = module.envs[local.primary_env].db_secret_arn
-    DbWriterEndpoint = module.envs[local.primary_env].db_writer_endpoint
-    KafkaServer      = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server)
-    SmsSid           = local.backend_cfg.sms_account_sid_value
-    SmsTok           = local.backend_cfg.sms_auth_token_value
-    SmsPhone         = local.backend_cfg.sms_phone_number
-    AwsKeyParam      = local.backend_cfg.aws_access_key_id
-    AwsSecretParam   = local.backend_cfg.aws_secret_key
-    S3Bucket         = local.backend_cfg.s3_bucket
-    S3Prefix         = local.backend_cfg.s3_prefix
-    TestMode         = local.backend_cfg.test_mode
-    AiMockMode       = local.backend_cfg.ai_mock_mode
-    SpringAiEnabled  = local.backend_cfg.spring_ai_enabled
-    RedisAuthParam   = module.envs[local.primary_env].redis_auth_param_name
-    RedisUrlParam    = module.envs[local.primary_env].redis_url_param_name
-    EncryptionSecret = module.envs[local.primary_env].encryption_secret
+    ClusterName      = each.value.eks_cluster_name
+    DbSecretArn      = each.value.db_secret_arn
+    DbWriterEndpoint = each.value.db_writer_endpoint
+    KafkaServer      = try(each.value.kafka_bootstrap_servers, local.environments[each.key].backend.kafka_server)
+    SmsSid           = local.environments[each.key].backend.sms_account_sid_value
+    SmsTok           = local.environments[each.key].backend.sms_auth_token_value
+    SmsPhone         = local.environments[each.key].backend.sms_phone_number
+    AwsKeyParam      = local.environments[each.key].backend.aws_access_key_id
+    AwsSecretParam   = local.environments[each.key].backend.aws_secret_key
+    S3Bucket         = local.environments[each.key].backend.s3_bucket
+    S3Prefix         = local.environments[each.key].backend.s3_prefix
+    TestMode         = local.environments[each.key].backend.test_mode
+    AiMockMode       = local.environments[each.key].backend.ai_mock_mode
+    SpringAiEnabled  = local.environments[each.key].backend.spring_ai_enabled
+    RedisAuthParam   = each.value.redis_auth_param_name
+    RedisUrlParam    = each.value.redis_url_param_name
+    EncryptionSecret = each.value.encryption_secret
     CognitoSecretArn = aws_secretsmanager_secret.headlamp_cognito.arn
     CognitoClientId  = aws_cognito_user_pool_client.headlamp.id
     CognitoIssuerUrl = "https://cognito-idp.${local.effective_region}.amazonaws.com/${aws_cognito_user_pool.headlamp.id}"

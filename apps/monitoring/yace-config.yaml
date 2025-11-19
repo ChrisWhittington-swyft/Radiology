@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yace-config
+  namespace: monitoring
+data:
+  config.yml: |
+    apiVersion: v1alpha1
+    discovery:
+      exportedTagsOnMetrics:
+        ec2:
+          - Name
+        rds:
+          - DBClusterIdentifier
+          - DBInstanceIdentifier
+        elasticache:
+          - CacheClusterId
+          - ReplicationGroupId
+        kafka:
+          - Cluster Name
+        applicationelb:
+          - Name
+
+    static:
+      - regions:
+          - us-east-1
+        namespace: AWS/RDS
+        name: rds
+        statistics:
+          - Average
+          - Maximum
+        period: 60
+        length: 300
+        metrics:
+          - name: CPUUtilization
+          - name: DatabaseConnections
+          - name: FreeableMemory
+          - name: ReadLatency
+          - name: WriteLatency
+          - name: ReadIOPS
+          - name: WriteIOPS
+          - name: FreeStorageSpace
+
+      - regions:
+          - us-east-1
+        namespace: AWS/ElastiCache
+        name: elasticache
+        statistics:
+          - Average
+          - Maximum
+        period: 60
+        length: 300
+        metrics:
+          - name: CPUUtilization
+          - name: DatabaseMemoryUsagePercentage
+          - name: NetworkBytesIn
+          - name: NetworkBytesOut
+          - name: CurrConnections
+          - name: Evictions
+          - name: BytesUsedForCache
+
+      - regions:
+          - us-east-1
+        namespace: AWS/Kafka
+        name: kafka
+        statistics:
+          - Average
+          - Maximum
+        period: 60
+        length: 300
+        metrics:
+          - name: CPUUser
+          - name: MemoryUsed
+          - name: KafkaDataLogsDiskUsed
+          - name: BytesInPerSec
+          - name: BytesOutPerSec
+
+      - regions:
+          - us-east-1
+        namespace: AWS/ApplicationELB
+        name: alb
+        statistics:
+          - Sum
+          - Average
+        period: 60
+        length: 300
+        metrics:
+          - name: RequestCount
+          - name: TargetResponseTime
+          - name: HTTPCode_Target_2XX_Count
+          - name: HTTPCode_Target_4XX_Count
+          - name: HTTPCode_Target_5XX_Count
+          - name: TargetConnectionErrorCount
+          - name: UnHealthyHostCount
+          - name: HealthyHostCount

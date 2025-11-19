@@ -40,6 +40,8 @@ locals {
       repo_url            = "https://github.com/BeNYMBL/Vytalmed-prod.git"
       repo_username       = "oauth2"                                            # GitHub with PAT
       repo_pat_param_name = "/bootstrap/github_pat_ria"
+      dockerhub_user_param = "/bootstrap/dockerhub_user"
+      dockerhub_pass_param = "/bootstrap/dockerhub_pass"
       app_of_apps_path    = "clusters/${local.primary_env}"
       project             = "default"
     }

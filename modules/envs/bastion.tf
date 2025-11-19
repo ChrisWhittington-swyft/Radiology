@@ -24,7 +24,7 @@ resource "aws_instance" "bastion" {
 # EC2 instance (Windows)
 ########################
 resource "aws_instance" "bastion_windows" {
-  count                       = var.enable_bastion && var.bastion_keypair != null ? 1 : 0
+  count                       = var.enable_bastion && var.enable_windows_bastion && var.bastion_keypair != null ? 1 : 0
   ami                         = data.aws_ssm_parameter.windows_2022_ami.value
   instance_type               = var.bastion_instance_type
   subnet_id                   = local.bastion_subnet_id

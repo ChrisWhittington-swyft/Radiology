@@ -32,12 +32,12 @@ resource "aws_vpc_security_group_ingress_rule" "bastion_rdp" {
   cidr_ipv4         = var.company_vpn_cidr
 }
 
-# RDP rules from DataVysta Richard IPs
+# RDP rules from DataVysta IPs
 resource "aws_vpc_security_group_ingress_rule" "bastion_rdp_datavysta" {
-  for_each = { for idx, cidr in var.datavysta_richard_ips : idx => cidr }
+  for_each = { for idx, cidr in var.datavysta_ips : idx => cidr }
 
   security_group_id = aws_security_group.bastion.id
-  description       = "RDP from DataVysta Richard ${each.key + 1}"
+  description       = "RDP from DataVysta ${each.key + 1}"
   ip_protocol       = "tcp"
   from_port         = 3389
   to_port           = 3389

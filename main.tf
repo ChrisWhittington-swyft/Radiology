@@ -95,8 +95,9 @@ module "envs" {
   account_id             = local.global_config.account_id
   alerts_email           = local.global_config.alerts_email
   company_vpn_cidr       = local.global_config.company_vpn_cidr
-  datavysta_richard_ips  = local.global_config.datavysta_richard_ips
+  datavysta_ips          = local.global_config.datavysta_ips
   bastion_keypair        = lookup(each.value, "bastion_keypair", null)
+  enable_windows_bastion = lookup(each.value, "enable_windows_bastion", false)
   enable_slack_alerts    = local.global_config.enable_slack_alerts
   slack_hook_uri         = local.global_config.slack_hook_uri
 

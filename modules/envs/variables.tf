@@ -47,6 +47,12 @@ variable "bastion_keypair" {
   description = "EC2 key pair name for SSH/RDP access to bastion hosts"
 }
 
+variable "enable_windows_bastion" {
+  type        = bool
+  default     = false
+  description = "Create a Windows bastion host (requires bastion_keypair)"
+}
+
 # SSO - optional
 
 variable "sso_admin_role_arn" {
@@ -121,9 +127,9 @@ variable "company_vpn_cidr" {
   default     = null
 }
 
-variable "datavysta_richard_ips" {
+variable "datavysta_ips" {
   type        = list(string)
-  description = "List of CIDR blocks for DataVysta Richard's access"
+  description = "List of CIDR blocks for DataVysta access"
   default     = []
 }
 

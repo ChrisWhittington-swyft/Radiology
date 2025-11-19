@@ -313,7 +313,7 @@ resource "aws_cloudwatch_event_target" "karpenter_instance_state_change" {
 # ============================================
 
 resource "aws_ec2_tag" "karpenter_private_subnets" {
-  for_each    = local.karpenter_enabled ? toset(var.private_subnet_ids) : []
+  for_each    = local.karpenter_enabled ? { for idx, subnet_id in var.private_subnet_ids : idx => subnet_id } : {}
   resource_id = each.value
   key         = "karpenter.sh/discovery"
   value       = module.eks.cluster_name

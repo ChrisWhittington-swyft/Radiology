@@ -117,6 +117,14 @@ variable "serverlessv2_max_capacity_acus" {
 }
 
 
+###================== Karpenter ==================###
+
+variable "karpenter_version" {
+  description = "Karpenter version (e.g., 1.8.1). Can be overridden per-environment. See https://github.com/aws/karpenter-provider-aws/releases"
+  type        = string
+  default     = "1.8.1"
+}
+
 ###================== Feature Toggles ==================###
 
 variable "enable_slack_alerts" {

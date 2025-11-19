@@ -138,10 +138,9 @@ locals {
 
   # Check if Karpenter is enabled in the primary environment
   karpenter_enabled = try(local.environments[local.primary_env].karpenter.enabled, false)
-  # keep in sync with compatibility matrix
   karpenter_version = try(
     local.environments[local.primary_env].karpenter.version,
-    "1.8.1"
+    var.karpenter_version
   )
 
   # Check if monitoring is enabled in the primary environment

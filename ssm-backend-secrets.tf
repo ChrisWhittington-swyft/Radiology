@@ -7,6 +7,7 @@ resource "aws_ssm_document" "backend_secret" {
     schemaVersion = "2.2",
     description   = "Create/refresh backend secrets from Secrets Manager (Aurora) + SSM",
     parameters = {
+  
       Region            = { type = "String", default = local.effective_region }
       ClusterName       = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
       SecretName        = { type = "String", default = local.backend_cfg.secret_name }

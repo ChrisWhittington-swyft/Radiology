@@ -157,8 +157,8 @@ resource "aws_ssm_association" "backend_secret_now" {
   parameters = {
     Region           = local.effective_region
     ClusterName      = module.envs[local.primary_env].eks_cluster_name
-    SecretName       = local.environments[each.key].backend.secret_name
-    SecretNamespace  = local.environments[each.key].backend.secret_namespace
+    SecretName       = local.environments[local.primary_env].backend.secret_name
+    SecretNamespace  = local.environments[local.primary_env].backend.secret_namespace
     DbSecretArn      = module.envs[local.primary_env].db_secret_arn
     DbWriterEndpoint = module.envs[local.primary_env].db_writer_endpoint
     KafkaServer      = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server)

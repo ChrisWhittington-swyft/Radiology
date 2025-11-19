@@ -72,6 +72,7 @@ locals {
      # Karpenter Settings
   karpenter = {
       enabled = true
+      version = "1.8.1"  # Can override default from variables.tf
 
       # Interruption queue name (will be prefixed with cluster name)
       interruption_queue_name = "karpenter"

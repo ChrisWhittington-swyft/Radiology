@@ -45,6 +45,8 @@ locals {
     }
       # Back-end
     backend = {
+      secret_name           = "vytalmed-backend-secrets"
+      secret_namespace      = "default"
       kafka_server          = "kafka:9092"
       sms_account_sid_value = "ACc2f9ba0fda5ea13b0a6c8f4ddf512657"
       sms_auth_token_value  = "d1ec6fb436a71444f650622013fecb76"

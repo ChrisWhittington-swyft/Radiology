@@ -5,10 +5,12 @@ resource "aws_ssm_document" "backend_secret" {
 
   content = jsonencode({
     schemaVersion = "2.2",
-    description   = "Create/refresh vytalmed-backend-secrets from Secrets Manager (Aurora) + SSM",
+    description   = "Create/refresh backend secrets from Secrets Manager (Aurora) + SSM",
     parameters = {
       Region            = { type = "String", default = local.effective_region }
       ClusterName       = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
+      SecretName        = { type = "String", default = local.backend_cfg.secret_name }
+      SecretNamespace   = { type = "String", default = local.backend_cfg.secret_namespace }
       DbSecretArn       = { type = "String", default = module.envs[local.primary_env].db_secret_arn }
       DbWriterEndpoint  = { type = "String", default = module.envs[local.primary_env].db_writer_endpoint }
       KafkaServer       = { type = "String", default = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server) }
@@ -42,6 +44,8 @@ resource "aws_ssm_document" "backend_secret" {
             # Params
             "REGION='{{ Region }}'",
             "CLUSTER='{{ ClusterName }}'",
+            "SECRET_NAME='{{ SecretName }}'",
+            "SECRET_NAMESPACE='{{ SecretNamespace }}'",
             "DB_SECRET_ARN='{{ DbSecretArn }}'",
             "DB_WRITER_ENDPOINT='{{ DbWriterEndpoint }}'",
             "KAFKA='{{ KafkaServer }}'",
@@ -117,7 +121,7 @@ resource "aws_ssm_document" "backend_secret" {
             "echo \"[BK] Redis config: HOST=$${REDIS_HOSTNAME} PORT=$${REDIS_PORT} SSL=$${REDIS_SSL}\"",
 
             # Create/replace Secret
-            "kubectl -n default create secret generic vytalmed-backend-secrets \\",
+            "kubectl -n \"$${SECRET_NAMESPACE}\" create secret generic \"$${SECRET_NAME}\" \\",
             "  --from-literal=TEST_MODE=\"$${TEST_MODE}\" \\",
             "  --from-literal=AI_MOCK_MODE=\"$${AI_MOCK}\" \\",
             "  --from-literal=SPRING_AI_ENABLED=\"$${SPRING_AI}\" \\",
@@ -140,7 +144,7 @@ resource "aws_ssm_document" "backend_secret" {
             "  --from-literal=REDIS_SSL=\"$${REDIS_SSL}\" \\",
             "  --from-literal=ENCRYPTION_SECRET=\"$${ENCRYPTION_SECRET}\" \\",
             "  --dry-run=client -o yaml | kubectl apply -f -",
-            "echo 'Created/updated Secret default/vytalmed-backend-secrets'",
+            "echo \"Created/updated Secret $${SECRET_NAMESPACE}/$${SECRET_NAME}\"",
             "",
             "# Headlamp OIDC secret (Cognito)",
             "echo \"[Headlamp] Creating/updating headlamp-oidc secret...\"",
@@ -176,6 +180,8 @@ resource "aws_ssm_association" "backend_secret_now" {
   parameters = {
     Region           = local.effective_region
     ClusterName      = each.value.eks_cluster_name
+    SecretName       = local.environments[each.key].backend.secret_name
+    SecretNamespace  = local.environments[each.key].backend.secret_namespace
     DbSecretArn      = each.value.db_secret_arn
     DbWriterEndpoint = each.value.db_writer_endpoint
     KafkaServer      = try(each.value.kafka_bootstrap_servers, local.environments[each.key].backend.kafka_server)

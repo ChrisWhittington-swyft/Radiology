@@ -8,8 +8,8 @@ resource "aws_ssm_document" "create_dockerhub_secret" {
     parameters = {
       Region      = { type = "String", default = local.effective_region }
       ClusterName = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
-      UserParam   = { type = "String", default = "/bootstrap/dockerhub_user" }
-      PassParam   = { type = "String", default = "/bootstrap/dockerhub_pass" }
+      UserParam   = { type = "String", default = local.environments[local.primary_env].argocd.dockerhub_user_param }
+      PassParam   = { type = "String", default = local.environments[local.primary_env].argocd.dockerhub_pass_param }
       Namespace   = { type = "String", default = "default" }
       SecretName  = { type = "String", default = "docker-hub-secret" }
     },

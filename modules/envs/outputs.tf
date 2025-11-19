@@ -61,8 +61,8 @@ output "bastion_windows_private_ip" {
 }
 
 output "bastion_windows_public_ip" {
-  value       = var.bastion_public ? try(aws_instance.bastion_windows[0].public_ip, null) : null
-  description = "Windows bastion public IP (only if bastion_public=true)"
+  value       = try(aws_eip.bastion_windows[0].public_ip, null)
+  description = "Windows bastion Elastic IP"
 }
 
 output "bastion_windows_password" {

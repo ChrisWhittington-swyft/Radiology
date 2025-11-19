@@ -93,3 +93,16 @@ resource "aws_route53_record" "app_subdomain" {
 
   depends_on = [aws_ssm_association.backend_secret_now]
 }
+
+# Windows Bastion DNS record → Elastic IP
+resource "aws_route53_record" "bastion_windows" {
+  for_each = { for k, v in module.envs : k => v if try(v.bastion_windows_public_ip, null) != null }
+
+  provider = aws.dns
+  zone_id  = data.aws_route53_zone.vytalmed.zone_id
+  name     = "bastion.${local.global_config.base_domain}"
+  type     = "A"
+  ttl      = 60
+  records  = [each.value.bastion_windows_public_ip]
+  allow_overwrite = true
+}

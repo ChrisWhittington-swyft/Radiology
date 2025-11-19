@@ -27,10 +27,10 @@ resource "aws_instance" "bastion_windows" {
   count                       = var.enable_bastion && var.enable_windows_bastion && var.bastion_keypair != null ? 1 : 0
   ami                         = data.aws_ssm_parameter.windows_2022_ami.value
   instance_type               = var.bastion_instance_type
-  subnet_id                   = local.bastion_subnet_id
+  subnet_id                   = var.public_subnet_ids[0]
   vpc_security_group_ids      = [aws_security_group.bastion.id]
   iam_instance_profile        = aws_iam_instance_profile.bastion[0].name
-  associate_public_ip_address = var.bastion_public
+  associate_public_ip_address = true
   key_name                    = var.bastion_keypair
   user_data                   = local.bastion_windows_user_data
   user_data_replace_on_change = true
@@ -41,6 +41,17 @@ resource "aws_instance" "bastion_windows" {
   }
 
   tags = merge(local.tags, { Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-windows" })
+}
+
+########################
+# Elastic IP for Windows Bastion
+########################
+resource "aws_eip" "bastion_windows" {
+  count    = var.enable_bastion && var.enable_windows_bastion && var.bastion_keypair != null ? 1 : 0
+  domain   = "vpc"
+  instance = aws_instance.bastion_windows[0].id
+
+  tags = merge(local.tags, { Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-windows-eip" })
 }
 
 ########################

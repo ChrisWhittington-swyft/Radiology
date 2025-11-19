@@ -42,15 +42,15 @@ output "kafka_cluster_arns" {
 
 output "bastion_windows_instance_ids" {
   description = "Windows bastion instance IDs per environment"
-  value       = { for k, m in module.envs : k => m.bastion_windows_instance_id if m.bastion_windows_instance_id != null }
+  value       = { for k, m in module.envs : k => m.bastion_windows_instance_id if try(m.bastion_windows_instance_id, null) != null }
 }
 
 output "bastion_windows_private_ips" {
   description = "Windows bastion private IPs per environment"
-  value       = { for k, m in module.envs : k => m.bastion_windows_private_ip if m.bastion_windows_private_ip != null }
+  value       = { for k, m in module.envs : k => m.bastion_windows_private_ip if try(m.bastion_windows_private_ip, null) != null }
 }
 
 output "bastion_windows_public_ips" {
   description = "Windows bastion public IPs per environment"
-  value       = { for k, m in module.envs : k => m.bastion_windows_public_ip if m.bastion_windows_public_ip != null }
+  value       = { for k, m in module.envs : k => m.bastion_windows_public_ip if try(m.bastion_windows_public_ip, null) != null }
 }

@@ -3,7 +3,7 @@
 ############################################
 
 resource "aws_ssm_document" "install_yace" {
-  count         = local.karpenter_enabled ? 1 : 0
+  count         = local.monitoring_enabled ? 1 : 0
   name          = "${lower(local.effective_tenant)}-${local.primary_env}-install-yace"
   document_type = "Command"
 

@@ -3,7 +3,7 @@
 ############################################
 
 resource "aws_ssm_document" "prometheus_alerts" {
-  count         = local.karpenter_enabled ? 1 : 0
+  count         = local.monitoring_enabled ? 1 : 0
   name          = "${lower(local.effective_tenant)}-${local.primary_env}-prometheus-alerts"
   document_type = "Command"
 

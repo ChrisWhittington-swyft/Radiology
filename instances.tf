@@ -33,7 +33,7 @@ locals {
       # app host subdomain for this env
       app_subdomain          = "dev"
       bastion_keypair        = "vytalmed-bastion-dev"
-      enable_windows_bastion = true
+      enable_windows_bastion = false
 
       # ArgoCD per-env
     argocd = {
@@ -140,6 +140,7 @@ locals {
     EBSEncEnabled = "true"
   }
 }
+
 
 
 

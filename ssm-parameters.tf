@@ -431,9 +431,10 @@ resource "aws_ssm_parameter" "env_kafka_bootstrap_servers" {
     if try(module.envs[k].kafka_bootstrap_servers, null) != null
   }
 
-  name  = "/eks/${module.envs[each.key].eks_cluster_name}/kafka/bootstrap_servers"
-  type  = "String"
-  value = module.envs[each.key].kafka_bootstrap_servers
+  name      = "/eks/${module.envs[each.key].eks_cluster_name}/kafka/bootstrap_servers"
+  type      = "String"
+  value     = module.envs[each.key].kafka_bootstrap_servers
+  overwrite = true
 
   tags = {
     Environment = each.key

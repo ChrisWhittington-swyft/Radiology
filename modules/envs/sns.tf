@@ -1,5 +1,5 @@
 resource "aws_sns_topic" "account_alerts_topic" {
-  name = "Account_Alerts"
+  name = "${var.tenant_name}-${var.environment}-alerts"
 
   lambda_success_feedback_sample_rate = 100
   lambda_failure_feedback_role_arn    = aws_iam_role.sns_logs.arn
@@ -21,7 +21,7 @@ resource "aws_sns_topic_subscription" "email_alerts" {
 
 # Create an IAM role for the SNS with access to CloudWatch
 resource "aws_iam_role" "sns_logs" {
-  name = "sns-logs"
+  name = "${var.tenant_name}-${var.environment}-sns-logs"
 
   assume_role_policy = <<POLICY
 {

@@ -175,5 +175,6 @@ resource "aws_ssm_association" "bootstrap_ingress_now" {
     aws_ssm_document.bootstrap_ingress,
     aws_acm_certificate.wildcard,
     aws_acm_certificate_validation.wildcard,
+    aws_ssm_association.install_argocd_now,
   ]
 }

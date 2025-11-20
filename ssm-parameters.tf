@@ -224,48 +224,6 @@ resource "aws_ssm_parameter" "env_backend_kafka_servers" {
   }
 }
 
-resource "aws_ssm_parameter" "env_backend_sms_sids" {
-  for_each = toset(local.enabled_environments)
-
-  name  = "/terraform/envs/${each.key}/backend/sms_account_sid"
-  type  = "SecureString"
-  value = local.environments[each.key].backend.sms_account_sid_value
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "SMS Account SID for ${each.key}"
-  }
-}
-
-resource "aws_ssm_parameter" "env_backend_sms_tokens" {
-  for_each = toset(local.enabled_environments)
-
-  name  = "/terraform/envs/${each.key}/backend/sms_auth_token"
-  type  = "SecureString"
-  value = local.environments[each.key].backend.sms_auth_token_value
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "SMS Auth Token for ${each.key}"
-  }
-}
-
-resource "aws_ssm_parameter" "env_backend_sms_phones" {
-  for_each = toset(local.enabled_environments)
-
-  name  = "/terraform/envs/${each.key}/backend/sms_phone_number"
-  type  = "String"
-  value = local.environments[each.key].backend.sms_phone_number
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "SMS Phone Number for ${each.key}"
-  }
-}
-
 resource "aws_ssm_parameter" "env_backend_aws_key_params" {
   for_each = toset(local.enabled_environments)
 

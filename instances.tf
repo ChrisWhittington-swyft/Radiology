@@ -47,19 +47,16 @@ locals {
     }
       # Back-end
     backend = {
-      secret_name           = "ria-backend-secrets"
-      secret_namespace      = "default"
-      kafka_server          = "kafka:9092"
-      sms_account_sid_value = "ACc2f9ba0fda5ea13b0a6c8f4ddf512657"
-      sms_auth_token_value  = "d1ec6fb436a71444f650622013fecb76"
-      sms_phone_number      = "+17027186630"
-      s3_bucket             = "ria-us-east-1-fax"
-      s3_prefix             = "incoming-faxes-lambda/"
-      aws_access_key_id     = "/bootstrap/backend/aws_access_key_id"
-      aws_secret_key        = "/bootstrap/backend/aws_secret_access_key"
-      test_mode             = "false"
-      ai_mock_mode          = "false"
-      spring_ai_enabled     = "true"
+      secret_name      = "ria-backend-secrets"
+      secret_namespace = "default"
+      kafka_server     = "kafka:9092"
+      s3_bucket        = "ria-us-east-1-fax"
+      s3_prefix        = "incoming-faxes-lambda/"
+      aws_access_key_id = "/bootstrap/backend/aws_access_key_id"
+      aws_secret_key    = "/bootstrap/backend/aws_secret_access_key"
+      test_mode        = "false"
+      ai_mock_mode     = "false"
+      spring_ai_enabled = "true"
     }
     # Monitoring Settings (Prometheus on cluster + YACE plugin)
       monitoring = {

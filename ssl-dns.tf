@@ -4,10 +4,10 @@ data "aws_route53_zone" "vytalmed" {
   private_zone = false
 }
 
-# Look up the NLB created by the ingress controller (by name tag)
+# Look up the NLB created by the ingress controller
 data "aws_lb" "ingress_nlb" {
   tags = {
-    "service.k8s.aws/stack" = "ingress-nginx/ingress-nginx-controller"
+    "kubernetes.io/service-name" = "ingress-nginx/ingress-nginx-controller"
   }
 
   depends_on = [

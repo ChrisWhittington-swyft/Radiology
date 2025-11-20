@@ -425,20 +425,3 @@ resource "aws_ssm_parameter" "env_redis_url_params" {
   }
 }
 
-resource "aws_ssm_parameter" "env_kafka_bootstrap_servers" {
-  for_each = {
-    for k in local.enabled_environments : k => k
-    if try(module.envs[k].kafka_bootstrap_servers, null) != null
-  }
-
-  name      = "/eks/${module.envs[each.key].eks_cluster_name}/kafka/bootstrap_servers"
-  type      = "String"
-  value     = module.envs[each.key].kafka_bootstrap_servers
-  overwrite = true
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "Kafka bootstrap servers for ${each.key}"
-  }
-}

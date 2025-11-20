@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ria-backend
+  labels:
+    app: ria-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ria-backend
+  template:
+    metadata:
+      labels:
+        app: ria-backend
+    spec:
+      containers:
+        - name: ria-backend
+          image: datavysta/ria-backend:49933e561d6b130f3545eba3a251111496cfc288
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "2000Mi"
+            requests:
+              cpu: "600m"
+              memory: "1000Mi"
+          envFrom:
+            - secretRef:
+                name: ria-backend-secrets
+          readinessProbe:
+            httpGet:
+              path: /rest/ping
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /rest/ping
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+      imagePullSecrets:
+        - name: docker-hub-secret
+

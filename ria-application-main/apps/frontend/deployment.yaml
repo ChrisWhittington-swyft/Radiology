@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ria-frontend
+  labels:
+    app: ria-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ria-frontend
+  template:
+    metadata:
+      labels:
+        app: ria-frontend
+    spec:
+      containers:
+        - name: ria-frontend
+          image: datavysta/ria-front:3d487f7a52ff84f66a49c3275a7d976e3dae046c
+          ports:
+            - name: http
+              containerPort: 8080   # <— set to the port the app actually listens on
+          resources:
+            limits:
+              cpu: 400m
+              memory: 250Mi
+            requests:
+              cpu: 300m
+              memory: 200Mi
+          # optional, but very useful to fail fast if port is wrong:
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: docker-hub-secret
+

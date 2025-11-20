@@ -134,10 +134,11 @@ locals {
     }
   }
 
-  enabled_environments = ["prod"]
+  enabled_environments = ["dev"]
 
   account_global = {
     EBSEncEnabled = "true"
   }
 }
+
 

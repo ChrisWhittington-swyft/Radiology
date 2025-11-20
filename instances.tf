@@ -14,7 +14,7 @@ locals {
   }
 
   environments = {
-    prod = {
+    dev = {
       # EKS
       cluster_version = "1.34"
       instance_types  = ["t3.medium"]
@@ -140,3 +140,4 @@ locals {
     EBSEncEnabled = "true"
   }
 }
+

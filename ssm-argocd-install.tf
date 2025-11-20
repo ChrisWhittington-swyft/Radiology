@@ -1,4 +1,4 @@
-# SSM document that installs Argo CD
+# SSM document that installs Argo CD per environment
 
 resource "aws_ssm_document" "install_argocd" {
   name          = "install-argocd"
@@ -6,11 +6,16 @@ resource "aws_ssm_document" "install_argocd" {
 
 content = jsonencode({
   schemaVersion = "2.2",
-  description   = "Install Argo CD via Helm (HTTP service; TLS terminates at NLB).",
+  description   = "Install Argo CD via Helm (HTTP service; TLS terminates at NLB) - per environment.",
   parameters = {
-    Region      = { type = "String", default = local.effective_region }
-    ClusterName = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
-    Namespace   = { type = "String", default = "argocd" }
+    Environment = {
+      type        = "String"
+      description = "Environment name (prod, dev, etc.)"
+    }
+    Namespace = {
+      type    = "String"
+      default = "argocd"
+    }
   },
   mainSteps = [
     {
@@ -23,17 +28,19 @@ content = jsonencode({
           "exec 2>&1",
 
           # Params
-          "REGION='{{ Region }}'",
-          "CLUSTER='{{ ClusterName }}'",
+          "ENV='{{ Environment }}'",
           "NS='{{ Namespace }}'",
-          "echo \"[ArgoCD] Region=$${REGION} Cluster=$${CLUSTER} Namespace=$${NS}\"",
+          "echo \"[ArgoCD] Starting installation for environment: $${ENV}\"",
 
-          # Fallback Region if blank/'-'
-          "[ -z \"$REGION\" ] || [ \"$REGION\" = \"-\" ] && {",
-          "  TOKEN=$(curl -sS -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 60\" || true)",
-          "  REGION=$(curl -sS -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/placement/region || echo \"\")",
-          "}",
-          "[ -z \"$REGION\" ] && REGION=\"us-east-1\"",
+          # Lookup environment-specific values from SSM Parameter Store
+          "echo \"[ArgoCD] Looking up environment configuration from SSM...\"",
+          "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+          "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$${ENV}/cluster_name --query 'Parameter.Value' --output text --region $${REGION})",
+
+          "echo \"Configuration loaded:\"",
+          "echo \"  Region: $${REGION}\"",
+          "echo \"  Cluster: $${CLUSTER}\"",
+          "echo \"  Namespace: $${NS}\"",
 
           # Kubeconfig env
           "export HOME=/root",
@@ -83,7 +90,8 @@ content = jsonencode({
           "PARAM_NAME=\"/eks/$${CLUSTER}/argocd/admin_password\"",
           "echo \"[ArgoCD] Writing admin password to SSM Parameter Store at $${PARAM_NAME} ...\"",
           "aws ssm put-parameter --region \"$REGION\" --name \"$${PARAM_NAME}\" --type SecureString --overwrite --value \"$PASS\"",
-          "echo \"[ArgoCD] Wrote/updated $${PARAM_NAME}\""
+          "echo \"[ArgoCD] Wrote/updated $${PARAM_NAME}\"",
+          "echo \"[ArgoCD] Installation completed for environment: $${ENV}\""
         ]
       }
     }
@@ -91,20 +99,25 @@ content = jsonencode({
 })
 }
 
-
+# Per-environment associations
 resource "aws_ssm_association" "install_argocd_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.install_argocd.name
 
+  # Target by Environment tag
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    Environment = each.key
     Namespace   = "argocd"
   }
 
-  depends_on = [module.envs]
+  depends_on = [
+    module.envs,
+    aws_ssm_parameter.env_cluster_names,
+  ]
 }

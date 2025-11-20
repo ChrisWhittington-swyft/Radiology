@@ -1,18 +1,20 @@
-# SSM document that bootstraps ingress-nginx and a sample app
+# SSM document that bootstraps ingress-nginx per environment
 resource "aws_ssm_document" "bootstrap_ingress" {
   name          = "bootstrap-ingress-and-app"
   document_type = "Command"
 
   content = jsonencode({
     schemaVersion = "2.2",
-    description   = "Install/upgrade ingress-nginx (NLB+ACM) and deploy ingress",
+    description   = "Install/upgrade ingress-nginx (NLB+ACM) and deploy ingress - per environment",
     parameters = {
-      Region       = { type = "String",  default = local.global_config.region }
-      ClusterName  = { type = "String",  default = module.envs[local.primary_env].eks_cluster_name }
-      AcmArn       = { type = "String",  default = aws_acm_certificate.wildcard.arn }
-      AppHost      = { type = "String",  default = local.app_host }
-      Namespace    = { type = "String",  default = "ingress-nginx" }
-      IngressNlbName = { type = "String", default = local.ingress_nlb_name }
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
+      }
+      Namespace = {
+        type    = "String"
+        default = "ingress-nginx"
+      }
     },
     mainSteps = [
       {
@@ -24,29 +26,31 @@ resource "aws_ssm_document" "bootstrap_ingress" {
             "exec 2>&1",
 
             # Variables
-            "REGION='{{ Region }}'",
-            "CLUSTER='{{ ClusterName }}'",
-            "ACM_ARN='{{ AcmArn }}'",
-            "APP_HOST='{{ AppHost }}'",
+            "ENV='{{ Environment }}'",
             "NS='{{ Namespace }}'",
-            "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Starting bootstrap process\"",
-            "echo \"Region: $${REGION}  Cluster: $${CLUSTER}  Namespace: $${NS}\"",
-            "export AWS_REGION=\"$${REGION}\" AWS_DEFAULT_REGION=\"$${REGION}\"",
-            "INGRESS_NLB_NAME='{{ IngressNlbName }}'",
-            "echo \"Using fixed NLB name: $${INGRESS_NLB_NAME}\"",
+            "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Starting bootstrap for environment: $${ENV}\"",
 
-            # Fallback region detection
-            "[ -z \"$REGION\" ] || [ \"$REGION\" = \"-\" ] && {",
-            "  TOKEN=$(curl -sS -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 60\" || true)",
-            "  REGION=$(curl -sS -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/placement/region || echo \"\")",
-            "}",
-            "[ -z \"$REGION\" ] && REGION=\"us-east-1\"",
+            # Lookup environment-specific values from SSM Parameter Store
+            "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Looking up environment configuration from SSM...\"",
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$${ENV}/cluster_name --query 'Parameter.Value' --output text --region $${REGION})",
+            "ACM_ARN=$(aws ssm get-parameter --name /terraform/shared/acm_arn --query 'Parameter.Value' --output text --region $${REGION})",
+            "APP_HOST=$(aws ssm get-parameter --name /terraform/envs/$${ENV}/app_host --query 'Parameter.Value' --output text --region $${REGION})",
+            "INGRESS_NLB_NAME=$(aws ssm get-parameter --name /terraform/envs/$${ENV}/ingress_nlb_name --query 'Parameter.Value' --output text --region $${REGION})",
+
+            "echo \"Configuration loaded:\"",
+            "echo \"  Region: $${REGION}\"",
+            "echo \"  Cluster: $${CLUSTER}\"",
+            "echo \"  App Host: $${APP_HOST}\"",
+            "echo \"  NLB Name: $${INGRESS_NLB_NAME}\"",
+            "echo \"  Namespace: $${NS}\"",
+
+            "export AWS_REGION=\"$${REGION}\" AWS_DEFAULT_REGION=\"$${REGION}\"",
 
             # Setup kubeconfig
             "export HOME=/root",
             "mkdir -p /root/.kube",
             "export KUBECONFIG=/root/.kube/config",
-            "export AWS_REGION=\"$REGION\" AWS_DEFAULT_REGION=\"$REGION\"",
             "set -u",
 
             # Sanity checks
@@ -121,7 +125,7 @@ resource "aws_ssm_document" "bootstrap_ingress" {
             # Final status
             "echo \"\"",
             "echo \"========================================\"",
-            "echo \"FINAL STATUS\"",
+            "echo \"FINAL STATUS - Environment: $${ENV}\"",
             "echo \"========================================\"",
             "kubectl -n \"$${NS}\" get svc ingress-nginx-controller -o wide",
             "echo \"\"",
@@ -140,31 +144,31 @@ resource "aws_ssm_document" "bootstrap_ingress" {
   })
 }
 
+# Per-environment associations
 resource "aws_ssm_association" "bootstrap_ingress_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.bootstrap_ingress.name
 
-  # 👇 Target by tag so replacement instances get picked up automatically
+  # Target by Environment tag
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
-    AcmArn      = aws_acm_certificate.wildcard.arn
-    AppHost     = local.app_host
+    Environment = each.key
     Namespace   = "ingress-nginx"
   }
-
-   #lifecycle {
-   #  ignore_changes = [parameters]
-   #}
 
   depends_on = [
     module.envs,
     aws_ssm_document.bootstrap_ingress,
     aws_acm_certificate.wildcard,
     aws_acm_certificate_validation.wildcard,
+    aws_ssm_parameter.env_cluster_names,
+    aws_ssm_parameter.env_app_hosts,
+    aws_ssm_parameter.env_ingress_nlb_names,
+    aws_ssm_parameter.shared_acm_arn,
   ]
 }

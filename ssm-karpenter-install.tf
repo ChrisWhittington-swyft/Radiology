@@ -3,31 +3,21 @@
 ############################################
 
 resource "aws_ssm_document" "install_karpenter" {
-  count         = local.karpenter_enabled ? 1 : 0
-  name          = "${lower(local.global_config.tenant_name)}-${local.primary_env}-install-karpenter"
+  name          = "install-karpenter"
   document_type = "Command"
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Install/upgrade Karpenter via Helm (OCI) using values from SSM; supports private EKS cluster."
+    description   = "Install/upgrade Karpenter via Helm (OCI) using values from SSM - per environment"
 
     parameters = {
-      Region = {
-        type    = "String"
-        default = local.global_config.region
-      }
-      ClusterName = {
-        type    = "String"
-        # Use the cluster for the selected primary_env
-        default = module.envs[local.primary_env].eks_cluster_name
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
       }
       Namespace = {
         type    = "String"
         default = "karpenter"
-      }
-      Version = {
-        type    = "String"
-        default = local.karpenter_version
       }
     }
 
@@ -46,33 +36,24 @@ resource "aws_ssm_document" "install_karpenter" {
             # -------------------------
             # Parameters & environment
             # -------------------------
-            "PARAM_REGION=\"{{Region}}\"",
-            "CLUSTER_NAME=\"{{ClusterName}}\"",
+            "ENV=\"{{Environment}}\"",
             "NS=\"{{Namespace}}\"",
-            "KARPENTER_VERSION=\"{{Version}}\"",
+            "echo \"[Karpenter] Starting for environment: $ENV\"",
+
+            # Lookup environment-specific values from SSM
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER_NAME=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+            "KARPENTER_VERSION=$(aws ssm get-parameter --name /terraform/envs/$ENV/karpenter/version --query 'Parameter.Value' --output text --region $REGION)",
+
+            "echo \"Configuration loaded for $ENV\"",
+            "echo \"  Cluster: $CLUSTER_NAME\"",
+            "echo \"  Version: $KARPENTER_VERSION\"",
 
             "export HOME=/root",
             "mkdir -p /root/.kube",
             "export KUBECONFIG=/root/.kube/config",
-
-            # Detect region from IMDS if not provided
-            "if [ -z \"$PARAM_REGION\" ] || [ \"$PARAM_REGION\" = \"null\" ]; then",
-            "  echo \"[Karpenter] Region not provided, detecting from IMDS...\"",
-            "  TOKEN=$(curl -sS -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 60\" || true)",
-            "  if [ -n \"$TOKEN\" ]; then",
-            "    PARAM_REGION=$(curl -sS -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/placement/region || true)",
-            "  else",
-            "    PARAM_REGION=$(curl -sS http://169.254.169.254/latest/meta-data/placement/region || true)",
-            "  fi",
-            "fi",
-
-            "if [ -z \"$PARAM_REGION\" ]; then",
-            "  echo \"[Karpenter] ERROR: Unable to determine AWS region\"",
-            "  exit 1",
-            "fi",
-
-            "export AWS_REGION=\"$PARAM_REGION\"",
-            "export AWS_DEFAULT_REGION=\"$PARAM_REGION\"",
+            "export AWS_REGION=\"$REGION\"",
+            "export AWS_DEFAULT_REGION=\"$REGION\"",
 
             "echo \"[Karpenter] Using Region: $AWS_REGION, Cluster: $CLUSTER_NAME, Namespace: $NS, Version: $KARPENTER_VERSION\"",
 
@@ -147,22 +128,27 @@ resource "aws_ssm_document" "install_karpenter" {
 ############################################
 
 resource "aws_ssm_association" "install_karpenter_now" {
-  count = local.karpenter_enabled ? 1 : 0
-  name  = aws_ssm_document.install_karpenter[0].name
+  for_each = {
+    for k in local.enabled_environments : k => k
+    if try(local.environments[k].karpenter.enabled, false)
+  }
+
+  name = aws_ssm_document.install_karpenter.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.global_config.region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    Environment = each.key
     Namespace   = "karpenter"
-    Version     = local.karpenter_version
   }
 
   depends_on = [
-    module.envs
+    module.envs,
+    aws_ssm_document.install_karpenter,
+    aws_ssm_parameter.env_cluster_names,
+    aws_ssm_parameter.env_karpenter_version,
   ]
 }

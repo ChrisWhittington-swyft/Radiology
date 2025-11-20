@@ -1,57 +1,43 @@
 # ============================================
 # SSM Document: Deploy Karpenter NodePools and EC2NodeClasses
 # ============================================
+
+# Generate per-environment Karpenter resource YAML
 locals {
-  tags = {
-    Tenant   = local.global_config.tenant_name
-    Env      = local.primary_env
-    Managed  = "Terraform"
-    Project  = "EKS-Karpenter"
-    Owner    = "Ops"
+  karpenter_resources_yaml_per_env = {
+    for env in local.enabled_environments :
+    env => templatefile("${path.module}/karpenter-resources.yaml.tpl", {
+      ami_family           = try(local.environments[env].karpenter.ec2nodeclass.ami_family, "AL2023")
+      instance_families    = try(local.environments[env].karpenter.ec2nodeclass.instance_families, ["m5", "m6a", "c6a"])
+      instance_sizes       = try(local.environments[env].karpenter.ec2nodeclass.instance_sizes, ["large", "xlarge"])
+      capacity_types       = try(local.environments[env].karpenter.ec2nodeclass.capacity_types, ["spot", "on-demand"])
+      cpu_limit            = try(local.environments[env].karpenter.nodepool.limits.cpu, "1000")
+      memory_limit         = try(local.environments[env].karpenter.nodepool.limits.memory, "2000Gi")
+      consolidation_policy = try(local.environments[env].karpenter.nodepool.disruption.consolidation_policy, "WhenUnderutilized")
+      consolidate_after    = try(local.environments[env].karpenter.nodepool.disruption.consolidate_after, "5m")
+      name_tag             = try(local.environments[env].karpenter.ec2nodeclass.name_tag, "${lower(local.effective_tenant)}-${env}-nodes-karpenter")
+      env_name             = env
+    })
+    if try(local.environments[env].karpenter.enabled, false)
   }
-}
-
-locals {
-  karpenter_config = try(local.environments[local.primary_env].karpenter, {})
-
-  karpenter_resources_yaml = templatefile("${path.module}/karpenter-resources.yaml.tpl", {
-    ami_family           = try(local.karpenter_config.ec2nodeclass.ami_family, "AL2023")
-    instance_families    = try(local.karpenter_config.ec2nodeclass.instance_families, ["m5", "m6a", "c6a"])
-    instance_sizes       = try(local.karpenter_config.ec2nodeclass.instance_sizes, ["large", "xlarge"])
-
-    # 🔽 allow spot→on-demand fallback by default
-    capacity_types       = try(local.karpenter_config.nodepool.capacity_types, ["spot", "on-demand"])
-
-    cpu_limit            = try(local.karpenter_config.nodepool.limits.cpu, "1000")
-    memory_limit         = try(local.karpenter_config.nodepool.limits.memory, "2000Gi")
-    consolidation_policy = try(local.karpenter_config.nodepool.disruption.consolidation_policy, "WhenUnderutilized")
-    consolidate_after    = try(local.karpenter_config.nodepool.disruption.consolidate_after, "5m")
-    name_tag             = try(local.karpenter_config.ec2nodeclass.name_tag, "${lower(local.effective_tenant)}-${local.primary_env}-nodes-karpenter")
-    env_name             = local.primary_env
-  })
 }
 
 
 resource "aws_ssm_document" "karpenter_nodepools" {
-  count        = local.karpenter_enabled ? 1 : 0
-  name         = "${lower(local.effective_tenant)}-${local.primary_env}-karpenter-nodepools"
+  name         = "karpenter-nodepools"
   document_type = "Command"
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Apply Karpenter NodePool and EC2NodeClass"
+    description   = "Apply Karpenter NodePool and EC2NodeClass - per environment"
     parameters = {
-      Region = {
-        type    = "String"
-        default = local.effective_region
-      }
-      ClusterName = {
-        type    = "String"
-        default = module.envs[local.primary_env].eks_cluster_name
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
       }
       ResourcesYaml = {
-        type    = "String"
-        default = local.karpenter_resources_yaml
+        type        = "String"
+        description = "Rendered Karpenter resources YAML"
       }
     }
     mainSteps = [
@@ -66,8 +52,15 @@ resource "aws_ssm_document" "karpenter_nodepools" {
             "exec 2>&1",
 
             # Params
-            "REGION='{{Region}}'",
-            "CLUSTER_NAME='{{ClusterName}}'",
+            "ENV='{{Environment}}'",
+            "echo \"[Karpenter NodePools] Starting for environment: $ENV\"",
+
+            # Lookup environment-specific values from SSM
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER_NAME=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+
+            "echo \"Configuration loaded for $ENV\"",
+            "echo \"  Cluster: $CLUSTER_NAME\"",
 
             # Kubeconfig env
             "export HOME=/root",
@@ -216,25 +209,30 @@ resource "aws_ssm_document" "karpenter_nodepools" {
     ]
   })
 
-  tags = local.tags
 }
 
 resource "aws_ssm_association" "karpenter_nodepools_now" {
-  count = local.karpenter_enabled ? 1 : 0
-  name  = aws_ssm_document.karpenter_nodepools[0].name
+  for_each = {
+    for k in local.enabled_environments : k => k
+    if try(local.environments[k].karpenter.enabled, false)
+  }
+
+  name = aws_ssm_document.karpenter_nodepools.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    Environment   = each.key
+    ResourcesYaml = local.karpenter_resources_yaml_per_env[each.key]
   }
 
   depends_on = [
     module.envs,
+    aws_ssm_document.karpenter_nodepools,
+    aws_ssm_parameter.env_cluster_names,
     aws_ssm_association.install_karpenter_now,
   ]
 }

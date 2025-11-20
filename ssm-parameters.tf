@@ -363,3 +363,35 @@ resource "aws_ssm_parameter" "env_backend_spring_ai_enabled" {
     Purpose     = "Spring AI enabled flag for ${each.key}"
   }
 }
+
+# Karpenter Configuration Parameters
+resource "aws_ssm_parameter" "env_karpenter_enabled" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/karpenter/enabled"
+  type  = "String"
+  value = tostring(try(local.environments[each.key].karpenter.enabled, false))
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Karpenter enabled flag for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_karpenter_version" {
+  for_each = {
+    for k in local.enabled_environments : k => k
+    if try(local.environments[k].karpenter.enabled, false)
+  }
+
+  name  = "/terraform/envs/${each.key}/karpenter/version"
+  type  = "String"
+  value = try(local.environments[each.key].karpenter.version, var.karpenter_version)
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Karpenter version for ${each.key}"
+  }
+}

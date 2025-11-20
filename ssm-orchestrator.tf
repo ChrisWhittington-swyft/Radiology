@@ -5,10 +5,12 @@ resource "aws_ssm_document" "bootstrap_orchestrator" {
 
   content = jsonencode({
     schemaVersion = "2.2",
-    description   = "Orchestrate all bootstrap operations in correct order",
+    description   = "Orchestrate all bootstrap operations in correct order - per environment",
     parameters = {
-      Region      = { type = "String", default = local.effective_region }
-      ClusterName = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
+      }
     },
     mainSteps = [
       {
@@ -20,12 +22,18 @@ resource "aws_ssm_document" "bootstrap_orchestrator" {
             "set -eo pipefail",
             "exec 2>&1",
 
-            "REGION='{{ Region }}'",
-            "CLUSTER='{{ ClusterName }}'",
+            "ENV='{{ Environment }}'",
             "INSTANCE_ID=$(ec2-metadata --instance-id | cut -d ' ' -f 2)",
-
-            "echo \"[Orchestrator] Starting bootstrap sequence for $CLUSTER in $REGION\"",
+            "echo \"[Orchestrator] Starting bootstrap sequence for environment: $ENV\"",
             "echo \"[Orchestrator] Instance: $INSTANCE_ID\"",
+
+            # Lookup environment-specific values from SSM
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+
+            "echo \"Configuration loaded for $ENV\"",
+            "echo \"  Region: $REGION\"",
+            "echo \"  Cluster: $CLUSTER\"",
 
             # Helper function to run SSM document and wait
             "run_ssm_doc() {",
@@ -77,28 +85,32 @@ resource "aws_ssm_document" "bootstrap_orchestrator" {
             "}",
 
             # 1. Bootstrap ingress controller and load balancer (FIRST - creates the NLB)
-            "run_ssm_doc 'bootstrap-ingress-and-app' 'Region=$REGION,ClusterName=$CLUSTER,AcmArn=${aws_acm_certificate.wildcard.arn},AppHost=${local.app_host},Namespace=ingress-nginx,IngressNlbName=${local.ingress_nlb_name}' || exit 1",
+            "run_ssm_doc 'bootstrap-ingress-and-app' 'Environment=$ENV,Namespace=ingress-nginx' || exit 1",
 
             # 2. Install ArgoCD
-            "run_ssm_doc 'install-argocd' 'Region=$REGION,ClusterName=$CLUSTER,Namespace=argocd' || exit 1",
+            "run_ssm_doc 'install-argocd' 'Environment=$ENV,Namespace=argocd' || exit 1",
 
             # 3. Create ArgoCD ingress
-            "run_ssm_doc 'argocd-ingress' 'Region=$REGION,ClusterName=$CLUSTER,ArgoHost=argocd.${local.base_domain},Namespace=argocd' || exit 1",
+            "run_ssm_doc 'argocd-ingress' 'Environment=$ENV,Namespace=argocd' || exit 1",
 
             # 4. Create DockerHub secret
-            "run_ssm_doc 'create-dockerhub-secret' 'Region=$REGION,ClusterName=$CLUSTER,UserParam=${local.environments[local.primary_env].argocd.dockerhub_user_param},PassParam=${local.environments[local.primary_env].argocd.dockerhub_pass_param},Namespace=default,SecretName=docker-hub-secret' || exit 1",
+            "run_ssm_doc 'create-dockerhub-secret' 'Environment=$ENV,Namespace=default,SecretName=docker-hub-secret' || exit 1",
 
             # 5. Wire up ArgoCD repos
-            "run_ssm_doc 'argocd-wireup' 'Region=$REGION,ClusterName=$CLUSTER,RepoURL=${local.environments[local.primary_env].argocd.repo_url},RepoUsername=${local.environments[local.primary_env].argocd.repo_username},RepoPatParam=${local.environments[local.primary_env].argocd.repo_pat_param_name},AppPath=${local.environments[local.primary_env].argocd.app_of_apps_path},Project=${local.environments[local.primary_env].argocd.project},Namespace=argocd' || exit 1",
+            "run_ssm_doc 'argocd-wireup' 'Environment=$ENV,Namespace=argocd' || exit 1",
 
             # 6. Create backend secrets
-            "run_ssm_doc 'backend-create-secret' 'Region=$REGION,ClusterName=$CLUSTER,SecretName=${local.environments[local.primary_env].backend.secret_name},SecretNamespace=${local.environments[local.primary_env].backend.secret_namespace},DbSecretArn=${module.envs[local.primary_env].db_secret_arn},DbWriterEndpoint=${module.envs[local.primary_env].db_writer_endpoint},KafkaServer=${try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server)},SmsSid=${local.backend_cfg.sms_account_sid_value},SmsTok=${local.backend_cfg.sms_auth_token_value},SmsPhone=${local.backend_cfg.sms_phone_number},AwsKeyParam=${local.backend_cfg.aws_access_key_id},AwsSecretParam=${local.backend_cfg.aws_secret_key},S3Bucket=${local.backend_cfg.s3_bucket},S3Prefix=${local.backend_cfg.s3_prefix},TestMode=${local.backend_cfg.test_mode},AiMockMode=${local.backend_cfg.ai_mock_mode},SpringAiEnabled=${local.backend_cfg.spring_ai_enabled},RedisAuthParam=${module.envs[local.primary_env].redis_auth_param_name},RedisUrlParam=${module.envs[local.primary_env].redis_url_param_name},EncryptionSecret=${module.envs[local.primary_env].encryption_secret}' || exit 1",
+            "run_ssm_doc 'backend-create-secret' 'Environment=$ENV' || exit 1",
 
-            # 7. Install Karpenter (if enabled)
-            local.karpenter_enabled ? "run_ssm_doc '${aws_ssm_document.install_karpenter[0].name}' 'Region=$REGION,ClusterName=$CLUSTER,Namespace=karpenter,Version=${local.karpenter_version}' || exit 1" : "echo '[Orchestrator] Karpenter disabled, skipping'",
-
-            # 8. Deploy Karpenter NodePools (if enabled)
-            local.karpenter_enabled ? "run_ssm_doc '${aws_ssm_document.karpenter_nodepools[0].name}' 'Region=$REGION,ClusterName=$CLUSTER' || exit 1" : "echo '[Orchestrator] Karpenter disabled, skipping nodepools'",
+            # 7. Check if Karpenter is enabled for this environment
+            "KARPENTER_ENABLED=$(aws ssm get-parameter --name /terraform/envs/$ENV/karpenter/enabled --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || echo 'false')",
+            "if [ \"$KARPENTER_ENABLED\" = \"true\" ]; then",
+            "  echo '[Orchestrator] Karpenter enabled, installing...'",
+            "  run_ssm_doc 'install-karpenter' 'Environment=$ENV,Namespace=karpenter' || exit 1",
+            "  run_ssm_doc 'karpenter-nodepools' 'Environment=$ENV' || exit 1",
+            "else",
+            "  echo '[Orchestrator] Karpenter disabled for $ENV, skipping'",
+            "fi",
 
             "echo \"[Orchestrator] === All bootstrap steps completed successfully ===\"",
           ]
@@ -109,16 +121,17 @@ resource "aws_ssm_document" "bootstrap_orchestrator" {
 }
 
 resource "aws_ssm_association" "bootstrap_orchestrator_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.bootstrap_orchestrator.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    Environment = each.key
   }
 
   depends_on = [

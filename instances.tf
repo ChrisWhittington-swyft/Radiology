@@ -72,7 +72,7 @@ locals {
      # Karpenter Settings
   karpenter = {
       enabled = true
-      version = "1.9.0"
+      version = "1.8.2"
       
       # Interruption queue name
       interruption_queue_name = "karpenter"

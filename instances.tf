@@ -37,7 +37,7 @@ locals {
 
       # ArgoCD per-env
     argocd = {
-      repo_url            = "https://github.com/BeNYMBL/Vytalmed-prod.git"
+      repo_url            = "https://github.com/BeNYMBL/ria-application.git"
       repo_username       = "oauth2"                                            # GitHub with PAT
       repo_pat_param_name = "/bootstrap/github_pat_ria"
       dockerhub_user_param = "/bootstrap/dockerhub_user"

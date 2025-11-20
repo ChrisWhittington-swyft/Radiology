@@ -4,12 +4,11 @@ data "aws_route53_zone" "vytalmed" {
   private_zone = false
 }
 
-# Look up the NLB created by the ingress controller for the primary environment
+# Look up the NLB created by the ingress controller for each environment
 data "aws_lb" "ingress_nlb" {
-  tags = {
-    "kubernetes.io/service-name" = "ingress-nginx/ingress-nginx-controller"
-    "Environment"                = local.primary_env
-  }
+  for_each = toset(local.enabled_environments)
+
+  name = "${lower(local.effective_tenant)}-${each.key}-ing"
 
   depends_on = [
     aws_ssm_association.bootstrap_ingress_now
@@ -59,27 +58,29 @@ resource "aws_acm_certificate_validation" "wildcard" {
 }
 
 
-# ArgoCD host → NLB
+# ArgoCD host → Primary env NLB (shared ArgoCD for all envs)
 resource "aws_route53_record" "argocd" {
   provider = aws.dns
   zone_id  = data.aws_route53_zone.vytalmed.zone_id
-  name     = local.argocd_host         # e.g., argocd-dev.vytalmed.app or argocd.vytalmed.app
+  name     = local.argocd_host         # e.g., argocd.vytalmed.app
   type     = "CNAME"
   ttl      = 60
-  records  = [data.aws_lb.ingress_nlb.dns_name]
+  records  = [data.aws_lb.ingress_nlb[local.primary_env].dns_name]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.argocd_ingress_now]
 }
 
-# Prod front-end → NLB
-resource "aws_route53_record" "subdomain-prod" {
+# Per-environment app subdomain → NLB
+resource "aws_route53_record" "app_subdomain" {
+  for_each = toset(local.enabled_environments)
+
   provider = aws.dns
   zone_id  = data.aws_route53_zone.vytalmed.zone_id
-  name     = local.environments[local.primary_env].app_subdomain         # e.g., prod.vytalmed.app
+  name     = local.environments[each.key].app_subdomain         # e.g., ria.vytalmed.app, ria-dev.vytalmed.app
   type     = "CNAME"
   ttl      = 60
-  records  = [data.aws_lb.ingress_nlb.dns_name]
+  records  = [data.aws_lb.ingress_nlb[each.key].dns_name]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.backend_secret_now]

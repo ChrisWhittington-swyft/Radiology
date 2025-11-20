@@ -1,6 +1,6 @@
 resource "time_sleep" "wait_for_bootstrap" {
   depends_on      = [aws_ssm_association.bootstrap_ingress_now]
-  create_duration = "300s"
+  create_duration = "120s"
 }
 
 data "aws_ssm_parameter" "ingress_nlb" {

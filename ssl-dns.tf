@@ -1,11 +1,27 @@
+# Create placeholder SSM parameter that will be updated by the bootstrap script
+resource "aws_ssm_parameter" "ingress_nlb_placeholder" {
+  name  = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
+  type  = "String"
+  value = "pending"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  depends_on = [module.envs]
+}
+
 resource "time_sleep" "wait_for_bootstrap" {
   depends_on      = [aws_ssm_association.bootstrap_ingress_now]
   create_duration = "120s"
 }
 
 data "aws_ssm_parameter" "ingress_nlb" {
-  depends_on = [time_sleep.wait_for_bootstrap]
-  name       = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
+  depends_on = [
+    time_sleep.wait_for_bootstrap,
+    aws_ssm_parameter.ingress_nlb_placeholder
+  ]
+  name = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
 }
 
 

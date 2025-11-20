@@ -5,23 +5,9 @@ resource "random_password" "db_master" {
   override_special = "!#$%?"
 }
 
-resource "aws_kms_key" "secrets" {
-  description             = "KMS key for Secrets Manager secrets"
-  deletion_window_in_days = 10
-  enable_key_rotation     = true
-
-  tags = local.tags
-}
-
-resource "aws_kms_alias" "secrets" {
-  name          = "alias/${local.name_prefix}-secrets"
-  target_key_id = aws_kms_key.secrets.key_id
-}
-
 resource "aws_secretsmanager_secret" "db_master" {
-  name       = "${local.name_prefix}-aurora-master"
-  kms_key_id = aws_kms_key.secrets.arn
-  tags       = local.tags
+  name = "${local.name_prefix}-aurora-master"
+  tags = local.tags
 }
 
 resource "aws_secretsmanager_secret_version" "db_master" {

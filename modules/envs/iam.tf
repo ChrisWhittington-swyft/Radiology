@@ -159,15 +159,10 @@ data "aws_iam_policy_document" "bastion_secret_read" {
     resources = [aws_secretsmanager_secret.db_master.arn]
   }
 
-  # KMS decrypt for Secrets Manager default key
+  # KMS decrypt for Secrets Manager customer-managed key
   statement {
     actions   = ["kms:Decrypt", "kms:DescribeKey"]
-    resources = ["arn:aws:kms:${var.region}:${var.account_id}:key/*"]
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["secretsmanager.${var.region}.amazonaws.com"]
-    }
+    resources = [aws_kms_key.secrets.arn]
   }
 
   # SSM Parameter Store (backend access keys)

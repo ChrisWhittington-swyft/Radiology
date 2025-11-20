@@ -2,7 +2,7 @@ locals {
   global_config = {
     region              = "us-east-1"
     account_id          = "324169293624"
-    tenant_name         = "vytalmed-dev"
+    tenant_name         = "RIA"
     base_domain         = "nymbl.host"
     alerts_email        = ["support@nymbl.app"]
     enable_slack_alerts = false
@@ -140,5 +140,6 @@ locals {
     EBSEncEnabled = "true"
   }
 }
+
 
 

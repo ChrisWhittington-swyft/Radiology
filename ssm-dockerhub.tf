@@ -67,8 +67,8 @@ resource "aws_ssm_association" "create_dockerhub_secret_now" {
   name = aws_ssm_document.create_dockerhub_secret.name
 
   targets {
-    key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
   }
 
   parameters = {

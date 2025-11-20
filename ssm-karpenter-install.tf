@@ -151,8 +151,8 @@ resource "aws_ssm_association" "install_karpenter_now" {
   name  = aws_ssm_document.install_karpenter[0].name
 
   targets {
-    key    = "tag:Name"
-    values = ["${lower(local.global_config.tenant_name)}-${local.effective_region}-bastion"]
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
   }
 
   parameters = {

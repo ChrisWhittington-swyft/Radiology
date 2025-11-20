@@ -150,8 +150,8 @@ resource "aws_ssm_association" "backend_secret_now" {
   name = aws_ssm_document.backend_secret.name
 
   targets {
-    key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
   }
 
   parameters = {

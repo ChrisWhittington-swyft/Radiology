@@ -17,7 +17,10 @@ resource "aws_instance" "bastion" {
     ignore_changes = [ami]
   }
 
-  tags = merge(local.tags, { Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-linux" })
+  tags = merge(local.tags, {
+    Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-linux"
+    SSMTarget = "bastion-linux"
+  })
 }
 
 ########################

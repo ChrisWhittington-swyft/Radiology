@@ -89,8 +89,8 @@ resource "aws_ssm_association" "argocd_ingress_now" {
   name = aws_ssm_document.argocd_ingress.name
 
   targets {
-    key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
   }
 
   parameters = {

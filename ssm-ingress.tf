@@ -154,8 +154,8 @@ resource "aws_ssm_association" "bootstrap_ingress_now" {
 
   # 👇 Target by tag so replacement instances get picked up automatically
   targets {
-    key    = "tag:Name"
-    values = ["${lower(local.effective_tenant)}-${local.effective_region}-bastion"]
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
   }
 
   parameters = {

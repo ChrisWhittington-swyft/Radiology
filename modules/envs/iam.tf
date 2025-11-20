@@ -176,14 +176,16 @@ data "aws_iam_policy_document" "bastion_secret_read" {
 }
 
 resource "aws_iam_policy" "bastion_secret_read" {
+  count  = var.enable_bastion ? 1 : 0
   name   = "${local.name_prefix}-bastion-secret-read"
   policy = data.aws_iam_policy_document.bastion_secret_read.json
 }
 
 
 resource "aws_iam_role_policy_attachment" "bastion_secret_read" {
+  count      = var.enable_bastion ? 1 : 0
   role       = aws_iam_role.bastion_ssm[0].id
-  policy_arn = aws_iam_policy.bastion_secret_read.arn
+  policy_arn = aws_iam_policy.bastion_secret_read[0].arn
 }
 
 
@@ -241,14 +243,16 @@ data "aws_iam_policy_document" "bastion_eks_addon_read" {
 }
 
 resource "aws_iam_policy" "bastion_eks_addon_read" {
+  count  = var.enable_bastion ? 1 : 0
   name   = "${local.name_prefix}-bastion-eks-addon-read"
   policy = data.aws_iam_policy_document.bastion_eks_addon_read.json
   tags   = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "bastion_eks_addon_read" {
+  count      = var.enable_bastion ? 1 : 0
   role       = aws_iam_role.bastion_ssm[0].name
-  policy_arn = aws_iam_policy.bastion_eks_addon_read.arn
+  policy_arn = aws_iam_policy.bastion_eks_addon_read[0].arn
 }
 
 # Allow bastion to describe EC2 resources for Karpenter diagnostics

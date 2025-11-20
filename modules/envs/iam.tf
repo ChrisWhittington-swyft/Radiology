@@ -159,20 +159,6 @@ data "aws_iam_policy_document" "bastion_secret_read" {
     resources = [aws_secretsmanager_secret.db_master.arn]
   }
 
-  # KMS decrypt for Secrets Manager (secrets are encrypted by default)
-  statement {
-    actions = [
-      "kms:Decrypt",
-      "kms:DescribeKey"
-    ]
-    resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["secretsmanager.${var.region}.amazonaws.com"]
-    }
-  }
-
   # SSM Parameter Store (backend access keys)
   statement {
     actions = ["ssm:GetParameter", "ssm:GetParameters"]
@@ -190,14 +176,16 @@ data "aws_iam_policy_document" "bastion_secret_read" {
 }
 
 resource "aws_iam_policy" "bastion_secret_read" {
+  count  = var.enable_bastion ? 1 : 0
   name   = "${local.name_prefix}-bastion-secret-read"
   policy = data.aws_iam_policy_document.bastion_secret_read.json
 }
 
 
 resource "aws_iam_role_policy_attachment" "bastion_secret_read" {
+  count      = var.enable_bastion ? 1 : 0
   role       = aws_iam_role.bastion_ssm[0].id
-  policy_arn = aws_iam_policy.bastion_secret_read.arn
+  policy_arn = aws_iam_policy.bastion_secret_read[0].arn
 }
 
 

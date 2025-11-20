@@ -250,3 +250,26 @@ resource "aws_iam_role_policy_attachment" "bastion_eks_addon_read" {
   role       = aws_iam_role.bastion_ssm[0].name
   policy_arn = aws_iam_policy.bastion_eks_addon_read.arn
 }
+
+# Allow bastion to describe EC2 resources for Karpenter diagnostics
+resource "aws_iam_role_policy" "bastion_ec2_read" {
+  count = var.enable_bastion ? 1 : 0
+  name  = "${local.name_prefix}-bastion-ec2-read"
+  role  = aws_iam_role.bastion_ssm[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeInstances",
+          "ec2:DescribeVpcs"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}

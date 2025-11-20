@@ -359,7 +359,7 @@ resource "aws_ssm_parameter" "env_db_secret_arns" {
   for_each = toset(local.enabled_environments)
 
   name  = "/eks/${module.envs[each.key].eks_cluster_name}/db_secret_arn"
-  type  = "SecureString"
+  type  = "String"
   value = module.envs[each.key].db_secret_arn
 
   tags = {

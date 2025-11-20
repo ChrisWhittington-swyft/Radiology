@@ -19,7 +19,8 @@ resource "aws_instance" "bastion" {
 
   tags = merge(local.tags, {
     Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-linux"
-    SSMTarget = "bastion-linux"
+    SSMTarget = "bastion-linux"  # Keep for backward compatibility during transition
+    Environment = var.env_name    # New tag for per-env SSM targeting
   })
 }
 
@@ -43,7 +44,10 @@ resource "aws_instance" "bastion_windows" {
     ignore_changes = [ami]
   }
 
-  tags = merge(local.tags, { Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-windows" })
+  tags = merge(local.tags, {
+    Name = "${lower(var.tenant_name)}-${var.region}-${var.env_name}-bastion-windows"
+    Environment = var.env_name  # Tag for per-env SSM targeting
+  })
 }
 
 ########################

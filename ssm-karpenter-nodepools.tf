@@ -24,7 +24,12 @@ locals {
 
 
 resource "aws_ssm_document" "karpenter_nodepools" {
-  name         = "karpenter-nodepools"
+  for_each = {
+    for k in local.enabled_environments : k => k
+    if try(local.environments[k].karpenter.enabled, false)
+  }
+
+  name         = "${lower(local.effective_tenant)}-${each.key}-karpenter-nodepools"
   document_type = "Command"
 
   content = jsonencode({
@@ -217,7 +222,7 @@ resource "aws_ssm_association" "karpenter_nodepools_now" {
     if try(local.environments[k].karpenter.enabled, false)
   }
 
-  name = aws_ssm_document.karpenter_nodepools.name
+  name = aws_ssm_document.karpenter_nodepools[each.key].name
 
   targets {
     key    = "tag:Environment"
@@ -231,7 +236,6 @@ resource "aws_ssm_association" "karpenter_nodepools_now" {
 
   depends_on = [
     module.envs,
-    aws_ssm_document.karpenter_nodepools,
     aws_ssm_parameter.env_cluster_names,
     aws_ssm_association.install_karpenter_now,
   ]

@@ -3,7 +3,12 @@
 ############################################
 
 resource "aws_ssm_document" "install_karpenter" {
-  name          = "install-karpenter"
+  for_each = {
+    for k in local.enabled_environments : k => k
+    if try(local.environments[k].karpenter.enabled, false)
+  }
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-install-karpenter"
   document_type = "Command"
 
   content = jsonencode({
@@ -133,7 +138,7 @@ resource "aws_ssm_association" "install_karpenter_now" {
     if try(local.environments[k].karpenter.enabled, false)
   }
 
-  name = aws_ssm_document.install_karpenter.name
+  name = aws_ssm_document.install_karpenter[each.key].name
 
   targets {
     key    = "tag:Environment"
@@ -147,7 +152,6 @@ resource "aws_ssm_association" "install_karpenter_now" {
 
   depends_on = [
     module.envs,
-    aws_ssm_document.install_karpenter,
     aws_ssm_parameter.env_cluster_names,
     aws_ssm_parameter.env_karpenter_version,
   ]

@@ -219,22 +219,5 @@ resource "aws_ssm_document" "karpenter_nodepools" {
   tags = local.tags
 }
 
-resource "aws_ssm_association" "karpenter_nodepools_now" {
-  count = local.karpenter_enabled ? 1 : 0
-  name  = aws_ssm_document.karpenter_nodepools[0].name
-
-  targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
-  }
-
-  parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
-  }
-
-  depends_on = [
-    module.envs,
-    aws_ssm_association.install_karpenter_now,
-  ]
-}
+# No standalone association - orchestrator handles sequencing
+# Note: NodePool deployment is triggered by the orchestrator AFTER Karpenter install completes

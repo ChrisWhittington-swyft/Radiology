@@ -1,7 +1,9 @@
 # SSM document that configures ArgoCD for per-environment repo and PAT
 
 resource "aws_ssm_document" "argocd_wireup" {
-  name          = "argocd-wireup"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-argocd-wireup"
   document_type = "Command"
 
   content = jsonencode({
@@ -127,7 +129,7 @@ resource "aws_ssm_document" "argocd_wireup" {
 resource "aws_ssm_association" "argocd_wireup_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.argocd_wireup.name
+  name = aws_ssm_document.argocd_wireup[each.key].name
 
   targets {
     key    = "tag:Environment"

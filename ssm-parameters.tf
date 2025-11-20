@@ -353,3 +353,91 @@ resource "aws_ssm_parameter" "env_karpenter_version" {
     Purpose     = "Karpenter version for ${each.key}"
   }
 }
+
+# Module Output Parameters (from envs module - stored in legacy /eks path for compatibility)
+resource "aws_ssm_parameter" "env_db_secret_arns" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/eks/${module.envs[each.key].eks_cluster_name}/db_secret_arn"
+  type  = "SecureString"
+  value = module.envs[each.key].db_secret_arn
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "DB Secret ARN for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_db_writer_endpoints" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/eks/${module.envs[each.key].eks_cluster_name}/db_writer_endpoint"
+  type  = "String"
+  value = module.envs[each.key].db_writer_endpoint
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "DB Writer Endpoint for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_encryption_secrets" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/eks/${module.envs[each.key].eks_cluster_name}/encryption_secret"
+  type  = "SecureString"
+  value = module.envs[each.key].encryption_secret
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Encryption secret for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_redis_auth_params" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/eks/${module.envs[each.key].eks_cluster_name}/redis/auth_param"
+  type  = "String"
+  value = module.envs[each.key].redis_auth_param_name
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Redis auth parameter path for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_redis_url_params" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/eks/${module.envs[each.key].eks_cluster_name}/redis/url_param"
+  type  = "String"
+  value = module.envs[each.key].redis_url_param_name
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Redis URL parameter path for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_kafka_bootstrap_servers" {
+  for_each = {
+    for k in local.enabled_environments : k => k
+    if try(module.envs[k].kafka_bootstrap_servers, null) != null
+  }
+
+  name  = "/eks/${module.envs[each.key].eks_cluster_name}/kafka/bootstrap_servers"
+  type  = "String"
+  value = module.envs[each.key].kafka_bootstrap_servers
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Kafka bootstrap servers for ${each.key}"
+  }
+}

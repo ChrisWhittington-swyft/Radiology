@@ -1,6 +1,8 @@
 # Orchestrator SSM document that executes all setup steps in sequence
 resource "aws_ssm_document" "bootstrap_orchestrator" {
-  name          = "bootstrap-orchestrator"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-bootstrap-orchestrator"
   document_type = "Command"
 
   content = jsonencode({
@@ -84,23 +86,32 @@ resource "aws_ssm_document" "bootstrap_orchestrator" {
             "  return 1",
             "}",
 
+            # Build document names with tenant and env prefix
+            "TENANT='${lower(local.effective_tenant)}'",
+            "DOC_INGRESS=\"$TENANT-$ENV-bootstrap-ingress-and-app\"",
+            "DOC_ARGOCD=\"$TENANT-$ENV-install-argocd\"",
+            "DOC_ARGOCD_INGRESS=\"$TENANT-$ENV-argocd-ingress\"",
+            "DOC_DOCKERHUB=\"$TENANT-$ENV-create-dockerhub-secret\"",
+            "DOC_ARGOCD_WIREUP=\"$TENANT-$ENV-argocd-wireup\"",
+            "DOC_BACKEND=\"$TENANT-$ENV-backend-create-secret\"",
+
             # 1. Bootstrap ingress controller and load balancer (FIRST - creates the NLB)
-            "run_ssm_doc 'bootstrap-ingress-and-app' 'Environment=$ENV,Namespace=ingress-nginx' || exit 1",
+            "run_ssm_doc \"$DOC_INGRESS\" 'Environment=$ENV,Namespace=ingress-nginx' || exit 1",
 
             # 2. Install ArgoCD
-            "run_ssm_doc 'install-argocd' 'Environment=$ENV,Namespace=argocd' || exit 1",
+            "run_ssm_doc \"$DOC_ARGOCD\" 'Environment=$ENV,Namespace=argocd' || exit 1",
 
             # 3. Create ArgoCD ingress
-            "run_ssm_doc 'argocd-ingress' 'Environment=$ENV,Namespace=argocd' || exit 1",
+            "run_ssm_doc \"$DOC_ARGOCD_INGRESS\" 'Environment=$ENV,Namespace=argocd' || exit 1",
 
             # 4. Create DockerHub secret
-            "run_ssm_doc 'create-dockerhub-secret' 'Environment=$ENV,Namespace=default,SecretName=docker-hub-secret' || exit 1",
+            "run_ssm_doc \"$DOC_DOCKERHUB\" 'Environment=$ENV,Namespace=default,SecretName=docker-hub-secret' || exit 1",
 
             # 5. Wire up ArgoCD repos
-            "run_ssm_doc 'argocd-wireup' 'Environment=$ENV,Namespace=argocd' || exit 1",
+            "run_ssm_doc \"$DOC_ARGOCD_WIREUP\" 'Environment=$ENV,Namespace=argocd' || exit 1",
 
             # 6. Create backend secrets
-            "run_ssm_doc 'backend-create-secret' 'Environment=$ENV' || exit 1",
+            "run_ssm_doc \"$DOC_BACKEND\" 'Environment=$ENV' || exit 1",
 
             # 7. Check if Karpenter is enabled for this environment
             "KARPENTER_ENABLED=$(aws ssm get-parameter --name /terraform/envs/$ENV/karpenter/enabled --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || echo 'false')",
@@ -126,7 +137,7 @@ resource "aws_ssm_document" "bootstrap_orchestrator" {
 resource "aws_ssm_association" "bootstrap_orchestrator_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.bootstrap_orchestrator.name
+  name = aws_ssm_document.bootstrap_orchestrator[each.key].name
 
   targets {
     key    = "tag:Environment"

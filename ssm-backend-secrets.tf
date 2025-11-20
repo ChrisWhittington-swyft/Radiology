@@ -1,6 +1,8 @@
 
 resource "aws_ssm_document" "backend_secret" {
-  name          = "backend-create-secret"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-backend-create-secret"
   document_type = "Command"
 
   content = jsonencode({
@@ -141,7 +143,7 @@ resource "aws_ssm_document" "backend_secret" {
 resource "aws_ssm_association" "backend_secret_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.backend_secret.name
+  name = aws_ssm_document.backend_secret[each.key].name
 
   targets {
     key    = "tag:Environment"
@@ -154,7 +156,6 @@ resource "aws_ssm_association" "backend_secret_now" {
 
   depends_on = [
     module.envs,
-    aws_ssm_document.backend_secret,
     aws_ssm_parameter.backend_access_key_id,
     aws_ssm_parameter.backend_secret_access_key,
     aws_ssm_parameter.env_cluster_names,
@@ -167,6 +168,11 @@ resource "aws_ssm_association" "backend_secret_now" {
     aws_ssm_parameter.env_backend_test_modes,
     aws_ssm_parameter.env_backend_ai_mock_modes,
     aws_ssm_parameter.env_backend_spring_ai_enabled,
+    aws_ssm_parameter.env_db_secret_arns,
+    aws_ssm_parameter.env_db_writer_endpoints,
+    aws_ssm_parameter.env_encryption_secrets,
+    aws_ssm_parameter.env_redis_auth_params,
+    aws_ssm_parameter.env_redis_url_params,
     aws_ssm_association.install_argocd_now,
     aws_ssm_association.argocd_ingress_now,
   ]

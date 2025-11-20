@@ -1,6 +1,8 @@
 # SSM document that bootstraps ingress-nginx per environment
 resource "aws_ssm_document" "bootstrap_ingress" {
-  name          = "bootstrap-ingress-and-app"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-bootstrap-ingress-and-app"
   document_type = "Command"
 
   content = jsonencode({
@@ -148,7 +150,7 @@ resource "aws_ssm_document" "bootstrap_ingress" {
 resource "aws_ssm_association" "bootstrap_ingress_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.bootstrap_ingress.name
+  name = aws_ssm_document.bootstrap_ingress[each.key].name
 
   # Target by Environment tag
   targets {

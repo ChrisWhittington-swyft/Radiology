@@ -1,5 +1,7 @@
 resource "aws_ssm_document" "create_dockerhub_secret" {
-  name          = "create-dockerhub-secret"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-create-dockerhub-secret"
   document_type = "Command"
 
   content = jsonencode({
@@ -80,7 +82,7 @@ resource "aws_ssm_document" "create_dockerhub_secret" {
 resource "aws_ssm_association" "create_dockerhub_secret_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.create_dockerhub_secret.name
+  name = aws_ssm_document.create_dockerhub_secret[each.key].name
 
   targets {
     key    = "tag:Environment"

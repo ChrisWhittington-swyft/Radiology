@@ -1,7 +1,9 @@
 # SSM document that installs Argo CD per environment
 
 resource "aws_ssm_document" "install_argocd" {
-  name          = "install-argocd"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-install-argocd"
   document_type = "Command"
 
 content = jsonencode({
@@ -103,7 +105,7 @@ content = jsonencode({
 resource "aws_ssm_association" "install_argocd_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.install_argocd.name
+  name = aws_ssm_document.install_argocd[each.key].name
 
   # Target by Environment tag
   targets {

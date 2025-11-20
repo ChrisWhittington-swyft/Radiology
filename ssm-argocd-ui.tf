@@ -1,7 +1,9 @@
 # SSM document that creates Argo UI ingress
 
 resource "aws_ssm_document" "argocd_ingress" {
-  name          = "argocd-ingress"
+  for_each = toset(local.enabled_environments)
+
+  name          = "${lower(local.effective_tenant)}-${each.key}-argocd-ingress"
   document_type = "Command"
 
 content = jsonencode({
@@ -93,7 +95,7 @@ content = jsonencode({
 resource "aws_ssm_association" "argocd_ingress_now" {
   for_each = toset(local.enabled_environments)
 
-  name = aws_ssm_document.argocd_ingress.name
+  name = aws_ssm_document.argocd_ingress[each.key].name
 
   targets {
     key    = "tag:Environment"

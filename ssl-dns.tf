@@ -11,17 +11,46 @@ resource "aws_ssm_parameter" "ingress_nlb_placeholder" {
   depends_on = [module.envs]
 }
 
-resource "time_sleep" "wait_for_bootstrap" {
-  depends_on      = [aws_ssm_association.bootstrap_ingress_now]
-  create_duration = "120s"
+# Poll SSM parameter until it's updated with real NLB hostname (not "pending")
+resource "null_resource" "wait_for_nlb_hostname" {
+  depends_on = [
+    aws_ssm_association.bootstrap_ingress_now,
+    aws_ssm_parameter.ingress_nlb_placeholder
+  ]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      PARAM_NAME="/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
+      REGION="${local.effective_region}"
+
+      echo "Waiting for NLB hostname in SSM parameter: $PARAM_NAME"
+
+      for i in $(seq 1 60); do
+        VALUE=$(aws ssm get-parameter --name "$PARAM_NAME" --region "$REGION" --query 'Parameter.Value' --output text 2>/dev/null || echo "pending")
+
+        if [ "$VALUE" != "pending" ] && [ -n "$VALUE" ]; then
+          echo "✓ NLB hostname available: $VALUE"
+          exit 0
+        fi
+
+        echo "Waiting for NLB hostname... ($i/60) - current value: $VALUE"
+        sleep 10
+      done
+
+      echo "ERROR: Timeout waiting for NLB hostname after 10 minutes"
+      exit 1
+    EOT
+  }
+
+  triggers = {
+    association_id = aws_ssm_association.bootstrap_ingress_now.association_id
+  }
 }
 
 data "aws_ssm_parameter" "ingress_nlb" {
-  depends_on = [
-    time_sleep.wait_for_bootstrap,
-    aws_ssm_parameter.ingress_nlb_placeholder
-  ]
-  name = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
+  depends_on = [null_resource.wait_for_nlb_hostname]
+  name       = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
 }
 
 

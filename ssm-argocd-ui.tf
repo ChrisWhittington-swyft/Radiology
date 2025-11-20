@@ -6,12 +6,16 @@ resource "aws_ssm_document" "argocd_ingress" {
 
 content = jsonencode({
   schemaVersion = "2.2",
-  description   = "Create an Ingress that routes argocd.<base_domain> to argocd-server (HTTP).",
+  description   = "Create an Ingress that routes argocd.<base_domain> to argocd-server (HTTP) - per environment.",
   parameters = {
-    Region      = { type = "String", default = local.effective_region }
-    ClusterName = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
-    ArgoHost    = { type = "String", default = local.argocd_host }
-    Namespace   = { type = "String", default = "argocd" }
+    Environment = {
+      type        = "String"
+      description = "Environment name (prod, dev, etc.)"
+    }
+    Namespace = {
+      type    = "String"
+      default = "argocd"
+    }
   },
   mainSteps = [
     {
@@ -22,18 +26,19 @@ content = jsonencode({
           "set -eo pipefail",
           "exec 2>&1",
 
-          "REGION='{{ Region }}'",
-          "CLUSTER='{{ ClusterName }}'",
-          "HOST='{{ ArgoHost }}'",
+          "ENV='{{ Environment }}'",
           "NS='{{ Namespace }}'",
-          "echo \"[ArgoIngress] Region=$${REGION} Cluster=$${CLUSTER} Host=$${HOST} Namespace=$${NS}\"",
+          "echo \"[ArgoIngress] Environment: $ENV Namespace: $NS\"",
 
-          # Fallback Region
-          "[ -z \"$REGION\" ] || [ \"$REGION\" = \"-\" ] && {",
-          "  TOKEN=$(curl -sS -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 60\" || true)",
-          "  REGION=$(curl -sS -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/placement/region || echo \"\")",
-          "}",
-          "[ -z \"$REGION\" ] && REGION=\"us-east-1\"",
+          # Lookup environment-specific values from SSM
+          "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+          "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+          "HOST=$(aws ssm get-parameter --name /terraform/envs/$ENV/argocd/host --query 'Parameter.Value' --output text --region $REGION)",
+
+          "echo \"Configuration loaded for $ENV\"",
+          "echo \"  Cluster: $CLUSTER\"",
+          "echo \"  ArgoCD Host: $HOST\"",
+          "echo \"[ArgoIngress] Region=$${REGION} Cluster=$${CLUSTER} Host=$${HOST} Namespace=$${NS}\"",
 
           # Kubeconfig env
           "export HOME=/root",
@@ -86,23 +91,25 @@ content = jsonencode({
 }
 
 resource "aws_ssm_association" "argocd_ingress_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.argocd_ingress.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
-    ArgoHost    = "argocd.${local.base_domain}"
+    Environment = each.key
     Namespace   = "argocd"
   }
 
   depends_on = [
     module.envs,
-    aws_ssm_association.install_argocd_now
-    #aws_route53_record.argocd
+    aws_ssm_document.argocd_ingress,
+    aws_ssm_association.install_argocd_now,
+    aws_ssm_parameter.env_cluster_names,
+    aws_ssm_parameter.env_argocd_hosts,
   ]
 }

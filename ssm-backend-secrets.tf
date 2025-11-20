@@ -5,29 +5,12 @@ resource "aws_ssm_document" "backend_secret" {
 
   content = jsonencode({
     schemaVersion = "2.2",
-    description   = "Create/refresh vytalmed-backend-secrets from Secrets Manager (Aurora) + SSM",
+    description   = "Create/refresh backend-secrets from Secrets Manager (Aurora) + SSM - per environment",
     parameters = {
-      Region            = { type = "String", default = local.effective_region }
-      ClusterName       = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
-      SecretName        = { type = "String", default = local.backend_cfg.secret_name }
-      SecretNamespace   = { type = "String", default = local.backend_cfg.secret_namespace }
-      DbSecretArn       = { type = "String", default = module.envs[local.primary_env].db_secret_arn }
-      DbWriterEndpoint  = { type = "String", default = module.envs[local.primary_env].db_writer_endpoint }
-      KafkaServer       = { type = "String", default = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server) }
-      SmsSid            = { type = "String", default = local.backend_cfg.sms_account_sid_value }
-      SmsTok            = { type = "String", default = local.backend_cfg.sms_auth_token_value }
-      SmsPhone          = { type = "String", default = local.backend_cfg.sms_phone_number }
-      AwsKeyParam       = { type = "String", default = local.backend_cfg.aws_access_key_id }
-      AwsSecretParam    = { type = "String", default = local.backend_cfg.aws_secret_key }
-      S3Bucket          = { type = "String", default = local.backend_cfg.s3_bucket }
-      S3Prefix          = { type = "String", default = local.backend_cfg.s3_prefix }
-      TestMode          = { type = "String", default = local.backend_cfg.test_mode }
-      AiMockMode        = { type = "String", default = local.backend_cfg.ai_mock_mode }
-      SpringAiEnabled   = { type = "String", default = local.backend_cfg.spring_ai_enabled }
-      RedisAuthParam    = { type = "String", default = module.envs[local.primary_env].redis_auth_param_name }
-      RedisUrlParam     = { type = "String", default = module.envs[local.primary_env].redis_url_param_name }
-      EncryptionSecret  = { type = "String", default = module.envs[local.primary_env].encryption_secret }
-
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
+      }
     },
     mainSteps = [
       {
@@ -39,24 +22,39 @@ resource "aws_ssm_document" "backend_secret" {
             "exec 2>&1",
 
             # Params
-            "REGION='{{ Region }}'",
-            "CLUSTER='{{ ClusterName }}'",
-            "SECRET_NAME='{{ SecretName }}'",
-            "SECRET_NAMESPACE='{{ SecretNamespace }}'",
-            "DB_SECRET_ARN='{{ DbSecretArn }}'",
-            "DB_WRITER_ENDPOINT='{{ DbWriterEndpoint }}'",
-            "KAFKA='{{ KafkaServer }}'",
-            "SMS_ACCOUNT_SID='{{ SmsSid }}'",
-            "SMS_AUTH_TOKEN='{{ SmsTok }}'",
-            "SMS_PHONE_NUMBER='{{ SmsPhone }}'",
-            "AWS_KEY_PARAM='{{ AwsKeyParam }}'",
-            "AWS_SEC_PARAM='{{ AwsSecretParam }}'",
-            "S3_BUCKET='{{ S3Bucket }}'",
-            "S3_PREFIX='{{ S3Prefix }}'",
-            "TEST_MODE='{{ TestMode }}'",
-            "AI_MOCK='{{ AiMockMode }}'",
-            "SPRING_AI='{{ SpringAiEnabled }}'",
-            "ENCRYPTION_SECRET='{{ EncryptionSecret }}'",
+            "ENV='{{ Environment }}'",
+            "echo \"[Backend Secrets] Starting for environment: $ENV\"",
+
+            # Lookup environment-specific values from SSM
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+            "SECRET_NAME=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/secret_name --query 'Parameter.Value' --output text --region $REGION)",
+            "SECRET_NAMESPACE=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/secret_namespace --query 'Parameter.Value' --output text --region $REGION)",
+            "SMS_ACCOUNT_SID=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/sms_account_sid --with-decryption --query 'Parameter.Value' --output text --region $REGION)",
+            "SMS_AUTH_TOKEN=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/sms_auth_token --with-decryption --query 'Parameter.Value' --output text --region $REGION)",
+            "SMS_PHONE_NUMBER=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/sms_phone_number --query 'Parameter.Value' --output text --region $REGION)",
+            "AWS_KEY_PARAM=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/aws_access_key_param --query 'Parameter.Value' --output text --region $REGION)",
+            "AWS_SEC_PARAM=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/aws_secret_key_param --query 'Parameter.Value' --output text --region $REGION)",
+            "S3_BUCKET=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/s3_bucket --query 'Parameter.Value' --output text --region $REGION)",
+            "S3_PREFIX=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/s3_prefix --query 'Parameter.Value' --output text --region $REGION)",
+            "TEST_MODE=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/test_mode --query 'Parameter.Value' --output text --region $REGION)",
+            "AI_MOCK=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/ai_mock_mode --query 'Parameter.Value' --output text --region $REGION)",
+            "SPRING_AI=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/spring_ai_enabled --query 'Parameter.Value' --output text --region $REGION)",
+
+            # Get DB and Redis metadata from module outputs stored in SSM
+            "DB_SECRET_ARN=$(aws ssm get-parameter --name /eks/$CLUSTER/db_secret_arn --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
+            "DB_WRITER_ENDPOINT=$(aws ssm get-parameter --name /eks/$CLUSTER/db_writer_endpoint --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
+            "KAFKA=$(aws ssm get-parameter --name /eks/$CLUSTER/kafka/bootstrap_servers --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || aws ssm get-parameter --name /terraform/envs/$ENV/backend/kafka_server --query 'Parameter.Value' --output text --region $REGION)",
+            "REDIS_AUTH_PARAM=$(aws ssm get-parameter --name /eks/$CLUSTER/redis/auth_param --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
+            "REDIS_URL_PARAM=$(aws ssm get-parameter --name /eks/$CLUSTER/redis/url_param --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
+            "ENCRYPTION_SECRET=$(aws ssm get-parameter --name /eks/$CLUSTER/encryption_secret --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
+            "DB_NAME=$(aws ssm get-parameter --name /eks/$CLUSTER/db_name --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || echo 'worklist')",
+            "DB_USER=$(aws ssm get-parameter --name /eks/$CLUSTER/db_username --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || echo 'worklist')",
+
+            "echo \"Configuration loaded for $ENV\"",
+            "echo \"  Cluster: $CLUSTER\"",
+            "echo \"  Secret: $SECRET_NAMESPACE/$SECRET_NAME\"",
+            "echo \"  DB: $DB_WRITER_ENDPOINT\"",
 
             # Kubeconfig
             "export HOME=/root",
@@ -84,15 +82,15 @@ resource "aws_ssm_document" "backend_secret" {
             "[ -z \"$${PGHOST}\" ] && PGHOST=\"$${DB_WRITER_ENDPOINT}\"",
             "echo \"[BK] PGHOST after fallback: '$${PGHOST}'\"",
 
-            # If the RDS secret lacked dbname/username, default to Terraform env values
-            "[ -z \"$${PGDATABASE}\" ] && PGDATABASE=\"${local.environments[local.primary_env].db_name}\"",
-            "[ -z \"$${PGUSER}\" ] && PGUSER=\"${local.environments[local.primary_env].db_username}\"",
+            # If the RDS secret lacked dbname/username, use defaults from SSM
+            "[ -z \"$${PGDATABASE}\" ] && PGDATABASE=\"$${DB_NAME}\"",
+            "[ -z \"$${PGUSER}\" ] && PGUSER=\"$${DB_USER}\"",
             "echo \"[dbg] Using PGHOST=$${PGHOST} PGUSER=$${PGUSER} PGDATABASE=$${PGDATABASE}\"",
 
             # Read Redis values from SSM
             "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Reading Redis params from SSM...\"",
-            "REDIS_PASS=$(aws ssm get-parameter --name '{{ RedisAuthParam }}' --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || true)",
-            "REDIS_URL_RAW=$(aws ssm get-parameter --name '{{ RedisUrlParam }}'  --query 'Parameter.Value' --output text 2>/dev/null || true)",
+            "REDIS_PASS=$(aws ssm get-parameter --name \"$REDIS_AUTH_PARAM\" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || true)",
+            "REDIS_URL_RAW=$(aws ssm get-parameter --name \"$REDIS_URL_PARAM\"  --query 'Parameter.Value' --output text 2>/dev/null || true)",
 
             # Parse hostname and port from URL (handles rediss://, optional creds, optional /db)
             "URL=\"$${REDIS_URL_RAW}\"",
@@ -147,40 +145,38 @@ resource "aws_ssm_document" "backend_secret" {
 }
 
 resource "aws_ssm_association" "backend_secret_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.backend_secret.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region           = local.effective_region
-    ClusterName      = module.envs[local.primary_env].eks_cluster_name
-    SecretName       = local.environments[local.primary_env].backend.secret_name
-    SecretNamespace  = local.environments[local.primary_env].backend.secret_namespace
-    DbSecretArn      = module.envs[local.primary_env].db_secret_arn
-    DbWriterEndpoint = module.envs[local.primary_env].db_writer_endpoint
-    KafkaServer      = try(module.envs[local.primary_env].kafka_bootstrap_servers, local.backend_cfg.kafka_server)
-    SmsSid           = local.backend_cfg.sms_account_sid_value
-    SmsTok           = local.backend_cfg.sms_auth_token_value
-    SmsPhone         = local.backend_cfg.sms_phone_number
-    AwsKeyParam      = local.backend_cfg.aws_access_key_id
-    AwsSecretParam   = local.backend_cfg.aws_secret_key
-    S3Bucket         = local.backend_cfg.s3_bucket
-    S3Prefix         = local.backend_cfg.s3_prefix
-    TestMode         = local.backend_cfg.test_mode
-    AiMockMode       = local.backend_cfg.ai_mock_mode
-    SpringAiEnabled  = local.backend_cfg.spring_ai_enabled
-    RedisAuthParam   = module.envs[local.primary_env].redis_auth_param_name
-    RedisUrlParam    = module.envs[local.primary_env].redis_url_param_name
-    EncryptionSecret = module.envs[local.primary_env].encryption_secret
+    Environment = each.key
   }
 
   depends_on = [
+    module.envs,
+    aws_ssm_document.backend_secret,
     aws_ssm_parameter.backend_access_key_id,
     aws_ssm_parameter.backend_secret_access_key,
-    aws_ssm_association.install_argocd_now,   # argo installed
-    aws_ssm_association.argocd_ingress_now,   # ingress is up
+    aws_ssm_parameter.env_cluster_names,
+    aws_ssm_parameter.env_backend_secret_names,
+    aws_ssm_parameter.env_backend_secret_namespaces,
+    aws_ssm_parameter.env_backend_sms_sids,
+    aws_ssm_parameter.env_backend_sms_tokens,
+    aws_ssm_parameter.env_backend_sms_phones,
+    aws_ssm_parameter.env_backend_aws_key_params,
+    aws_ssm_parameter.env_backend_aws_secret_params,
+    aws_ssm_parameter.env_backend_s3_buckets,
+    aws_ssm_parameter.env_backend_s3_prefixes,
+    aws_ssm_parameter.env_backend_test_modes,
+    aws_ssm_parameter.env_backend_ai_mock_modes,
+    aws_ssm_parameter.env_backend_spring_ai_enabled,
+    aws_ssm_association.install_argocd_now,
+    aws_ssm_association.argocd_ingress_now,
   ]
 }

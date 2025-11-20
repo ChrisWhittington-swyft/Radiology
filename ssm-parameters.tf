@@ -166,3 +166,200 @@ resource "aws_ssm_parameter" "env_argocd_projects" {
     Purpose     = "ArgoCD project name for ${each.key}"
   }
 }
+
+resource "aws_ssm_parameter" "env_argocd_hosts" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/argocd/host"
+  type  = "String"
+  value = "argocd.${local.base_domain}"
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "ArgoCD UI host for ${each.key}"
+  }
+}
+
+# Backend Configuration Parameters
+resource "aws_ssm_parameter" "env_backend_secret_names" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/secret_name"
+  type  = "String"
+  value = local.environments[each.key].backend.secret_name
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Backend Kubernetes secret name for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_secret_namespaces" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/secret_namespace"
+  type  = "String"
+  value = local.environments[each.key].backend.secret_namespace
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Backend Kubernetes secret namespace for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_kafka_servers" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/kafka_server"
+  type  = "String"
+  value = local.environments[each.key].backend.kafka_server
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Kafka server for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_sms_sids" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/sms_account_sid"
+  type  = "SecureString"
+  value = local.environments[each.key].backend.sms_account_sid_value
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "SMS Account SID for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_sms_tokens" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/sms_auth_token"
+  type  = "SecureString"
+  value = local.environments[each.key].backend.sms_auth_token_value
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "SMS Auth Token for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_sms_phones" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/sms_phone_number"
+  type  = "String"
+  value = local.environments[each.key].backend.sms_phone_number
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "SMS Phone Number for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_aws_key_params" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/aws_access_key_param"
+  type  = "String"
+  value = local.environments[each.key].backend.aws_access_key_id
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "AWS Access Key ID parameter path for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_aws_secret_params" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/aws_secret_key_param"
+  type  = "String"
+  value = local.environments[each.key].backend.aws_secret_key
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "AWS Secret Key parameter path for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_s3_buckets" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/s3_bucket"
+  type  = "String"
+  value = local.environments[each.key].backend.s3_bucket
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "S3 Bucket for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_s3_prefixes" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/s3_prefix"
+  type  = "String"
+  value = local.environments[each.key].backend.s3_prefix
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "S3 Prefix for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_test_modes" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/test_mode"
+  type  = "String"
+  value = local.environments[each.key].backend.test_mode
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Test mode flag for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_ai_mock_modes" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/ai_mock_mode"
+  type  = "String"
+  value = local.environments[each.key].backend.ai_mock_mode
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "AI mock mode flag for ${each.key}"
+  }
+}
+
+resource "aws_ssm_parameter" "env_backend_spring_ai_enabled" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/backend/spring_ai_enabled"
+  type  = "String"
+  value = local.environments[each.key].backend.spring_ai_enabled
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Spring AI enabled flag for ${each.key}"
+  }
+}

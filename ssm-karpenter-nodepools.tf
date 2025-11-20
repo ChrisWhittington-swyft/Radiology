@@ -83,6 +83,20 @@ resource "aws_ssm_document" "karpenter_nodepools" {
             # Sanity check: Test if real cluster, not localhost
             "kubectl get ns kube-system 1>/dev/null 2>&1 || { echo \"[Karpenter] ERROR: cannot reach cluster\"; exit 1; }",
 
+            # Wait for Karpenter namespace to exist (ensures install has started)
+            "echo \"[Karpenter] Waiting for karpenter namespace to exist...\"",
+            "for i in $(seq 1 60); do",
+            "  if kubectl get namespace karpenter >/dev/null 2>&1; then",
+            "    echo \"[Karpenter] Namespace exists, proceeding...\"",
+            "    break",
+            "  fi",
+            "  if [ $i -eq 60 ]; then",
+            "    echo \"[Karpenter] ERROR: karpenter namespace not found after 3 minutes. Is Karpenter installed?\"",
+            "    exit 1",
+            "  fi",
+            "  sleep 3",
+            "done",
+
             # Read the node instance profile from the same SSM path used by the install
             "BASE_SSM_PATH=\"/eks/$CLUSTER_NAME/karpenter\"",
             "NODE_INSTANCE_PROFILE=$(aws ssm get-parameter --name \"$BASE_SSM_PATH/node_instance_profile\" --query \"Parameter.Value\" --output text || true)",
@@ -219,5 +233,22 @@ resource "aws_ssm_document" "karpenter_nodepools" {
   tags = local.tags
 }
 
-# No standalone association - orchestrator handles sequencing
-# Note: NodePool deployment is triggered by the orchestrator AFTER Karpenter install completes
+resource "aws_ssm_association" "karpenter_nodepools_now" {
+  count = local.karpenter_enabled ? 1 : 0
+  name  = aws_ssm_document.karpenter_nodepools[0].name
+
+  targets {
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
+  }
+
+  parameters = {
+    Region      = local.effective_region
+    ClusterName = module.envs[local.primary_env].eks_cluster_name
+  }
+
+  depends_on = [
+    module.envs,
+    aws_ssm_association.install_karpenter_now,
+  ]
+}

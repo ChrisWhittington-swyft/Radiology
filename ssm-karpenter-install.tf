@@ -143,7 +143,26 @@ resource "aws_ssm_document" "install_karpenter" {
 
 
 ############################################
-# No standalone association - orchestrator handles sequencing
+# Association: run on bastion
 ############################################
-# Note: Karpenter installation is triggered by the orchestrator
-# which ensures proper sequencing (install → nodepools)
+
+resource "aws_ssm_association" "install_karpenter_now" {
+  count = local.karpenter_enabled ? 1 : 0
+  name  = aws_ssm_document.install_karpenter[0].name
+
+  targets {
+    key    = "tag:SSMTarget"
+    values = ["bastion-linux"]
+  }
+
+  parameters = {
+    Region      = local.global_config.region
+    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    Namespace   = "karpenter"
+    Version     = local.karpenter_version
+  }
+
+  depends_on = [
+    module.envs
+  ]
+}

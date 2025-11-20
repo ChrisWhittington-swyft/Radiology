@@ -1,4 +1,4 @@
-# SSM document that configures ArgoCD for the locals-env repo and PAT
+# SSM document that configures ArgoCD for per-environment repo and PAT
 
 resource "aws_ssm_document" "argocd_wireup" {
   name          = "argocd-wireup"
@@ -6,16 +6,16 @@ resource "aws_ssm_document" "argocd_wireup" {
 
   content = jsonencode({
     schemaVersion = "2.2",
-    description   = "Register Argo CD repo via PAT, create App-of-Apps, and store admin password",
+    description   = "Register Argo CD repo via PAT, create App-of-Apps, and store admin password - per environment",
     parameters = {
-      Region          = { type = "String", default = local.effective_region }
-      ClusterName     = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
-      RepoURL         = { type = "String", default = local.environments[local.primary_env].argocd.repo_url }
-      RepoUsername    = { type = "String", default = local.environments[local.primary_env].argocd.repo_username }
-      RepoPatParam    = { type = "String", default = local.environments[local.primary_env].argocd.repo_pat_param_name }
-      AppPath         = { type = "String", default = local.environments[local.primary_env].argocd.app_of_apps_path }
-      Project         = { type = "String", default = local.environments[local.primary_env].argocd.project }
-      Namespace       = { type = "String", default = "argocd" }
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
+      }
+      Namespace = {
+        type    = "String"
+        default = "argocd"
+      }
     },
     mainSteps = [
       {
@@ -27,15 +27,22 @@ resource "aws_ssm_document" "argocd_wireup" {
             "exec 2>&1",
 
             # Params
-            "REGION='{{ Region }}'",
-            "CLUSTER='{{ ClusterName }}'",
-            "REPO_URL='{{ RepoURL }}'",
-            "REPO_USER='{{ RepoUsername }}'",
-            "PAT_PARAM='{{ RepoPatParam }}'",
-            "APP_PATH='{{ AppPath }}'",
-            "PROJECT='{{ Project }}'",
+            "ENV='{{ Environment }}'",
             "NS='{{ Namespace }}'",
+            "echo \"[Argo Wireup] Environment: $ENV\"",
 
+            # Lookup environment-specific values from SSM
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+            "REPO_URL=$(aws ssm get-parameter --name /terraform/envs/$ENV/argocd/repo_url --query 'Parameter.Value' --output text --region $REGION)",
+            "REPO_USER=$(aws ssm get-parameter --name /terraform/envs/$ENV/argocd/repo_username --query 'Parameter.Value' --output text --region $REGION)",
+            "PAT_PARAM=$(aws ssm get-parameter --name /terraform/envs/$ENV/argocd/repo_pat_param --query 'Parameter.Value' --output text --region $REGION)",
+            "APP_PATH=$(aws ssm get-parameter --name /terraform/envs/$ENV/argocd/app_path --query 'Parameter.Value' --output text --region $REGION)",
+            "PROJECT=$(aws ssm get-parameter --name /terraform/envs/$ENV/argocd/project --query 'Parameter.Value' --output text --region $REGION)",
+
+            "echo \"Configuration loaded for $ENV\"",
+            "echo \"  Cluster: $CLUSTER\"",
+            "echo \"  Repo: $REPO_URL\"",
             "echo \"[Argo Wireup] Region=$${REGION} Cluster=$${CLUSTER}\"",
 
             # Kubeconfig env
@@ -118,25 +125,29 @@ resource "aws_ssm_document" "argocd_wireup" {
 }
 
 resource "aws_ssm_association" "argocd_wireup_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.argocd_wireup.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region       = local.effective_region
-    ClusterName  = module.envs[local.primary_env].eks_cluster_name
-    RepoURL      = local.environments[local.primary_env].argocd.repo_url
-    RepoUsername = local.environments[local.primary_env].argocd.repo_username
-    RepoPatParam = local.environments[local.primary_env].argocd.repo_pat_param_name
-    AppPath      = local.environments[local.primary_env].argocd.app_of_apps_path
-    Project      = local.environments[local.primary_env].argocd.project
-    Namespace    = "argocd"
+    Environment = each.key
+    Namespace   = "argocd"
   }
 
   depends_on = [
-    aws_ssm_association.install_argocd_now, # make sure Argo is installed first
+    module.envs,
+    aws_ssm_document.argocd_wireup,
+    aws_ssm_association.install_argocd_now,
+    aws_ssm_parameter.env_cluster_names,
+    aws_ssm_parameter.env_argocd_repo_urls,
+    aws_ssm_parameter.env_argocd_repo_usernames,
+    aws_ssm_parameter.env_argocd_repo_pat_params,
+    aws_ssm_parameter.env_argocd_app_paths,
+    aws_ssm_parameter.env_argocd_projects,
   ]
 }

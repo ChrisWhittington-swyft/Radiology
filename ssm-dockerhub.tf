@@ -4,14 +4,20 @@ resource "aws_ssm_document" "create_dockerhub_secret" {
 
   content = jsonencode({
     schemaVersion = "2.2",
-    description   = "Create or update docker-hub secret in the default namespace",
+    description   = "Create or update docker-hub secret in the default namespace - per environment",
     parameters = {
-      Region      = { type = "String", default = local.effective_region }
-      ClusterName = { type = "String", default = module.envs[local.primary_env].eks_cluster_name }
-      UserParam   = { type = "String", default = local.environments[local.primary_env].argocd.dockerhub_user_param }
-      PassParam   = { type = "String", default = local.environments[local.primary_env].argocd.dockerhub_pass_param }
-      Namespace   = { type = "String", default = "default" }
-      SecretName  = { type = "String", default = "docker-hub-secret" }
+      Environment = {
+        type        = "String"
+        description = "Environment name (prod, dev, etc.)"
+      }
+      Namespace = {
+        type    = "String"
+        default = "default"
+      }
+      SecretName = {
+        type    = "String"
+        default = "docker-hub-secret"
+      }
     },
     mainSteps = [
       {
@@ -20,12 +26,20 @@ resource "aws_ssm_document" "create_dockerhub_secret" {
         inputs = {
           runCommand = [
             "set -euo pipefail",
-            "REGION='{{ Region }}'",
-            "CLUSTER='{{ ClusterName }}'",
-            "USER_PARAM='{{ UserParam }}'",
-            "PASS_PARAM='{{ PassParam }}'",
+            "ENV='{{ Environment }}'",
             "NS='{{ Namespace }}'",
             "SECRET='{{ SecretName }}'",
+            "echo \"Starting DockerHub secret creation for environment: $ENV\"",
+
+            # Lookup environment-specific values from SSM
+            "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
+            "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$ENV/cluster_name --query 'Parameter.Value' --output text --region $REGION)",
+            "USER_PARAM=$(aws ssm get-parameter --name /terraform/envs/$ENV/dockerhub_user_param --query 'Parameter.Value' --output text --region $REGION)",
+            "PASS_PARAM=$(aws ssm get-parameter --name /terraform/envs/$ENV/dockerhub_pass_param --query 'Parameter.Value' --output text --region $REGION)",
+
+            "echo \"Configuration loaded for $ENV\"",
+            "echo \"  Cluster: $CLUSTER\"",
+            "echo \"  Namespace: $NS\"",
 
             # Kubeconfig env
             "export HOME=/root",
@@ -64,22 +78,25 @@ resource "aws_ssm_document" "create_dockerhub_secret" {
 }
 
 resource "aws_ssm_association" "create_dockerhub_secret_now" {
+  for_each = toset(local.enabled_environments)
+
   name = aws_ssm_document.create_dockerhub_secret.name
 
   targets {
-    key    = "tag:SSMTarget"
-    values = ["bastion-linux"]
+    key    = "tag:Environment"
+    values = [each.key]
   }
 
   parameters = {
-    Region      = local.effective_region
-    ClusterName = module.envs[local.primary_env].eks_cluster_name
+    Environment = each.key
     Namespace   = "default"
     SecretName  = "docker-hub-secret"
   }
 
   depends_on = [
-    aws_ssm_association.install_argocd_now,  # cluster tools ready
-    aws_ssm_association.argocd_wireup_now    # repo registered (optional order)
+    module.envs,
+    aws_ssm_document.create_dockerhub_secret,
+    aws_ssm_association.install_argocd_now,
+    aws_ssm_association.argocd_wireup_now
   ]
 }

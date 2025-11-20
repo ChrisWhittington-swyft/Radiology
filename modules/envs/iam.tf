@@ -188,7 +188,7 @@ data "aws_iam_policy_document" "bastion_secret_read" {
 
 resource "aws_iam_policy" "bastion_secret_read" {
   count  = var.enable_bastion ? 1 : 0
-  name   = "${local.name_prefix}-bastion-secret-read"
+  name   = "${local.name_prefix}-bastion-secret-read-v2"
   policy = data.aws_iam_policy_document.bastion_secret_read.json
 }
 

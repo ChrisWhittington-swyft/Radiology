@@ -1,0 +1,50 @@
+# =====================================================================
+# NLB-DEPENDENT DNS RECORDS
+# =====================================================================
+# This file contains DNS records that depend on NLBs created by Kubernetes.
+#
+# DEPLOYMENT INSTRUCTIONS:
+# 1. First deployment: Keep this file as .tf.disabled
+# 2. After ingress controllers create NLBs (wait ~10 minutes after apply)
+# 3. Rename this file to ssl-dns-nlb-records.tf
+# 4. Run: terraform apply
+# =====================================================================
+
+# Look up the NLB created by the ingress controller for each environment
+data "aws_lb" "ingress_nlb" {
+  for_each = toset(local.enabled_environments)
+
+  name = "${lower(local.effective_tenant)}-${each.key}-ing"
+
+  depends_on = [
+    aws_ssm_association.bootstrap_ingress_now
+  ]
+}
+
+# ArgoCD host → Primary env NLB (shared ArgoCD for all envs)
+resource "aws_route53_record" "argocd" {
+  provider = aws.dns
+  zone_id  = data.aws_route53_zone.vytalmed.zone_id
+  name     = local.argocd_host         # e.g., argocd.vytalmed.app
+  type     = "CNAME"
+  ttl      = 60
+  records  = [data.aws_lb.ingress_nlb[local.primary_env].dns_name]
+  allow_overwrite = true
+
+  depends_on = [aws_ssm_association.argocd_ingress_now]
+}
+
+# Per-environment app subdomain → NLB
+resource "aws_route53_record" "app_subdomain" {
+  for_each = toset(local.enabled_environments)
+
+  provider = aws.dns
+  zone_id  = data.aws_route53_zone.vytalmed.zone_id
+  name     = local.environments[each.key].app_subdomain         # e.g., ria.vytalmed.app, ria-dev.vytalmed.app
+  type     = "CNAME"
+  ttl      = 60
+  records  = [data.aws_lb.ingress_nlb[each.key].dns_name]
+  allow_overwrite = true
+
+  depends_on = [aws_ssm_association.backend_secret_now]
+}

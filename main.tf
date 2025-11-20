@@ -15,18 +15,28 @@ terraform {
   # PROVIDER CONFIGURATION
   # ----------------------
 
-# Workload account
+# Workload account (default)
 provider "aws" {
   region  = var.region
-  profile = "Radiology"
+  profile = "default"
+  assume_role {
+    role_arn     = "arn:aws:iam::${local.global_config.account_id}:role/TerraformAdmin"
+    session_name = "tf-workload"
+    duration     = "3600s"
+  }
 }
 
 # DNS account (aliased)
 provider "aws" {
   alias   = "dns"
-  region  = "us-east-1"
-  profile = "Radiology"
+  region  = "us-east-1" # pick any; Route53 is global but region is required
+  profile = "default"
+  assume_role {
+    role_arn     = "arn:aws:iam::470091195908:role/TerraformAdmin"
+    session_name = "tf-dns"
+  }
 }
+
 
 # Providers into the cluster
 provider "kubernetes" {
@@ -147,4 +157,5 @@ locals {
   # Account-level EBS Encryption By default
 resource "aws_ebs_encryption_by_default" "main" {
   enabled = local.account_global["EBSEncEnabled"]
+
 }

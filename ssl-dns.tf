@@ -4,10 +4,11 @@ data "aws_route53_zone" "vytalmed" {
   private_zone = false
 }
 
-# Look up the NLB created by the ingress controller
+# Look up the NLB created by the ingress controller for the primary environment
 data "aws_lb" "ingress_nlb" {
   tags = {
     "kubernetes.io/service-name" = "ingress-nginx/ingress-nginx-controller"
+    "Environment"                = local.primary_env
   }
 
   depends_on = [

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download Project Backup</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .download-btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #0066cc;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+        .download-btn:hover {
+            background: #0052a3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Project Backup Ready</h1>
+    <p>Click the button below to download your project files:</p>
+    <a href="project-backup.tar.gz" download="project-backup.tar.gz" class="download-btn">
+        Download project-backup.tar.gz (38KB)
+    </a>
+    <p style="color: #666; margin-top: 40px;">
+        After downloading, extract with:<br>
+        <code>tar -xzf project-backup.tar.gz</code>
+    </p>
+</body>
+</html>

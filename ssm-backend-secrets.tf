@@ -13,6 +13,16 @@ resource "aws_ssm_document" "backend_secret" {
         type        = "String"
         description = "Environment name (prod, dev, etc.)"
       }
+      DbSecretArn = {
+        type        = "String"
+        description = "ARN of the Aurora master secret"
+        default     = module.envs[each.key].db_secret_arn
+      }
+      DbWriterEndpoint = {
+        type        = "String"
+        description = "Aurora writer endpoint"
+        default     = module.envs[each.key].db_writer_endpoint
+      }
     },
     mainSteps = [
       {
@@ -25,6 +35,8 @@ resource "aws_ssm_document" "backend_secret" {
 
             # Params
             "ENV='{{ Environment }}'",
+            "DB_SECRET_ARN='{{ DbSecretArn }}'",
+            "DB_WRITER_ENDPOINT='{{ DbWriterEndpoint }}'",
             "echo \"[Backend Secrets] Starting for environment: $ENV\"",
 
             # Lookup environment-specific values from SSM
@@ -40,9 +52,7 @@ resource "aws_ssm_document" "backend_secret" {
             "AI_MOCK=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/ai_mock_mode --query 'Parameter.Value' --output text --region $REGION)",
             "SPRING_AI=$(aws ssm get-parameter --name /terraform/envs/$ENV/backend/spring_ai_enabled --query 'Parameter.Value' --output text --region $REGION)",
 
-            # Get DB and Redis metadata from module outputs stored in SSM
-            "DB_SECRET_ARN=$(aws ssm get-parameter --name /eks/$CLUSTER/db_secret_arn --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
-            "DB_WRITER_ENDPOINT=$(aws ssm get-parameter --name /eks/$CLUSTER/db_writer_endpoint --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
+            # Get Redis and Kafka metadata from module outputs stored in SSM
             "KAFKA=$(aws ssm get-parameter --name /eks/$CLUSTER/kafka/bootstrap_servers --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || aws ssm get-parameter --name /terraform/envs/$ENV/backend/kafka_server --query 'Parameter.Value' --output text --region $REGION)",
             "REDIS_AUTH_PARAM=$(aws ssm get-parameter --name /eks/$CLUSTER/redis/auth_param --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
             "REDIS_URL_PARAM=$(aws ssm get-parameter --name /eks/$CLUSTER/redis/url_param --query 'Parameter.Value' --output text --region $REGION 2>/dev/null || true)",
@@ -151,7 +161,9 @@ resource "aws_ssm_association" "backend_secret_now" {
   }
 
   parameters = {
-    Environment = each.key
+    Environment      = each.key
+    DbSecretArn      = module.envs[each.key].db_secret_arn
+    DbWriterEndpoint = module.envs[each.key].db_writer_endpoint
   }
 
   depends_on = [
@@ -168,8 +180,6 @@ resource "aws_ssm_association" "backend_secret_now" {
     aws_ssm_parameter.env_backend_test_modes,
     aws_ssm_parameter.env_backend_ai_mock_modes,
     aws_ssm_parameter.env_backend_spring_ai_enabled,
-    aws_ssm_parameter.env_db_secret_arns,
-    aws_ssm_parameter.env_db_writer_endpoints,
     aws_ssm_parameter.env_encryption_secrets,
     aws_ssm_parameter.env_redis_auth_params,
     aws_ssm_parameter.env_redis_url_params,

@@ -355,33 +355,6 @@ resource "aws_ssm_parameter" "env_karpenter_version" {
 }
 
 # Module Output Parameters (from envs module - stored in legacy /eks path for compatibility)
-resource "aws_ssm_parameter" "env_db_secret_arns" {
-  for_each = toset(local.enabled_environments)
-
-  name  = "/eks/${module.envs[each.key].eks_cluster_name}/db_secret_arn"
-  type  = "String"
-  value = module.envs[each.key].db_secret_arn
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "DB Secret ARN for ${each.key}"
-  }
-}
-
-resource "aws_ssm_parameter" "env_db_writer_endpoints" {
-  for_each = toset(local.enabled_environments)
-
-  name  = "/eks/${module.envs[each.key].eks_cluster_name}/db_writer_endpoint"
-  type  = "String"
-  value = module.envs[each.key].db_writer_endpoint
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "DB Writer Endpoint for ${each.key}"
-  }
-}
 
 resource "aws_ssm_parameter" "env_encryption_secrets" {
   for_each = toset(local.enabled_environments)

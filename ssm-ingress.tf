@@ -118,15 +118,6 @@ resource "aws_ssm_document" "bootstrap_ingress" {
             "  exit 1",
             "fi",
 
-            # Persist NLB hostname to SSM Parameter Store for Terraform to read
-            "PARAM_NAME=\"/eks/$${CLUSTER}/ingress_nlb_hostname\"",
-            "if [ -n \"$${LB}\" ]; then",
-            "  aws ssm put-parameter --name \"$${PARAM_NAME}\" --type String --overwrite --value \"$${LB}\"",
-            "  echo \"Wrote SSM parameter: $${PARAM_NAME} = $${LB}\"",
-            "else",
-            "  echo \"WARN: LB hostname empty; skipping SSM put-parameter\"",
-            "fi",
-
             # Final status
             "echo \"\"",
             "echo \"========================================\"",

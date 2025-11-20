@@ -1,65 +1,19 @@
-# Create placeholder SSM parameter that will be updated by the bootstrap script
-resource "aws_ssm_parameter" "ingress_nlb_placeholder" {
-  name  = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
-  type  = "String"
-  value = "pending"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-
-  depends_on = [module.envs]
-}
-
-# Poll SSM parameter until it's updated with real NLB hostname (not "pending")
-resource "null_resource" "wait_for_nlb_hostname" {
-  depends_on = [
-    aws_ssm_association.bootstrap_ingress_now,
-    aws_ssm_parameter.ingress_nlb_placeholder
-  ]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -e
-      PARAM_NAME="/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
-      REGION="${local.effective_region}"
-
-      echo "Waiting for NLB hostname in SSM parameter: $PARAM_NAME"
-
-      for i in $(seq 1 60); do
-        VALUE=$(aws ssm get-parameter --name "$PARAM_NAME" --region "$REGION" --query 'Parameter.Value' --output text 2>/dev/null || echo "pending")
-
-        if [ "$VALUE" != "pending" ] && [ -n "$VALUE" ]; then
-          echo "✓ NLB hostname available: $VALUE"
-          exit 0
-        fi
-
-        echo "Waiting for NLB hostname... ($i/60) - current value: $VALUE"
-        sleep 10
-      done
-
-      echo "ERROR: Timeout waiting for NLB hostname after 10 minutes"
-      exit 1
-    EOT
-  }
-
-  triggers = {
-    association_id = aws_ssm_association.bootstrap_ingress_now.association_id
-  }
-}
-
-data "aws_ssm_parameter" "ingress_nlb" {
-  depends_on = [null_resource.wait_for_nlb_hostname]
-  name       = "/eks/${module.envs[local.primary_env].eks_cluster_name}/ingress_nlb_hostname"
-}
-
-
 data "aws_route53_zone" "vytalmed" {
   provider     = aws.dns
   name         = "${local.global_config.base_domain}."
   private_zone = false
 }
 
+# Look up the NLB created by the ingress controller (by name tag)
+data "aws_lb" "ingress_nlb" {
+  tags = {
+    "service.k8s.aws/stack" = "ingress-nginx/ingress-nginx-controller"
+  }
+
+  depends_on = [
+    aws_ssm_association.bootstrap_ingress_now
+  ]
+}
 
 #############################################
 # Wildcard ACM cert in workload account/region
@@ -111,7 +65,7 @@ resource "aws_route53_record" "argocd" {
   name     = local.argocd_host         # e.g., argocd-dev.vytalmed.app or argocd.vytalmed.app
   type     = "CNAME"
   ttl      = 60
-  records  = [data.aws_ssm_parameter.ingress_nlb.value]
+  records  = [data.aws_lb.ingress_nlb.dns_name]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.argocd_ingress_now]
@@ -124,7 +78,7 @@ resource "aws_route53_record" "subdomain-prod" {
   name     = local.environments[local.primary_env].app_subdomain         # e.g., prod.vytalmed.app
   type     = "CNAME"
   ttl      = 60
-  records  = [data.aws_ssm_parameter.ingress_nlb.value]
+  records  = [data.aws_lb.ingress_nlb.dns_name]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.backend_secret_now]

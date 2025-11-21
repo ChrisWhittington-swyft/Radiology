@@ -44,10 +44,6 @@ spec:
           defaultDashboardsEnabled: true
           defaultDashboardsTimezone: UTC
 
-          grafana.ini:
-            dashboards:
-              default_home_dashboard_path: /tmp/dashboards/k8s-cluster-monitoring.json
-
           # Provision dashboards from grafana.com
           dashboardProviders:
             dashboardproviders.yaml:

@@ -38,11 +38,13 @@ content = jsonencode({
           "echo \"[ArgoCD] Looking up environment configuration from SSM...\"",
           "REGION=$(aws ssm get-parameter --name /terraform/shared/region --query 'Parameter.Value' --output text 2>/dev/null || echo 'us-east-1')",
           "CLUSTER=$(aws ssm get-parameter --name /terraform/envs/$${ENV}/cluster_name --query 'Parameter.Value' --output text --region $${REGION})",
+          "HOST=$(aws ssm get-parameter --name /terraform/envs/$${ENV}/argocd/host --query 'Parameter.Value' --output text --region $${REGION})",
 
           "echo \"Configuration loaded:\"",
           "echo \"  Region: $${REGION}\"",
           "echo \"  Cluster: $${CLUSTER}\"",
           "echo \"  Namespace: $${NS}\"",
+          "echo \"  ArgoCD Host: $${HOST}\"",
 
           # Kubeconfig env
           "export HOME=/root",
@@ -69,6 +71,9 @@ content = jsonencode({
           "  --set server.insecure=true \\",
           "  --set server.service.type=ClusterIP \\",
           "  --set configs.params.\"server\\.insecure\"=true \\",
+          "  --set configs.params.\"server\\.rootpath\"=/ \\",
+          "  --set configs.params.\"server\\.basehref\"=/ \\",
+          "  --set 'server.ingress.hosts[0]'=\"$HOST\" \\",
           "  --wait --timeout 10m",
 
           # Wait for argocd-server Service to exist (avoid race with next step)
@@ -121,5 +126,6 @@ resource "aws_ssm_association" "install_argocd_now" {
   depends_on = [
     module.envs,
     aws_ssm_parameter.env_cluster_names,
+    aws_ssm_parameter.env_argocd_hosts,
   ]
 }

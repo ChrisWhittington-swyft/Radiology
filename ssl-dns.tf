@@ -1,4 +1,4 @@
-data "aws_route53_zone" "vytalmed" {
+data "aws_route53_zone" "main" {
   provider     = aws.dns
   name         = "${local.global_config.base_domain}."
   private_zone = false
@@ -45,7 +45,7 @@ resource "aws_route53_record" "wildcard_validation" {
     }
   }
 
-  zone_id = data.aws_route53_zone.vytalmed.zone_id
+  zone_id = data.aws_route53_zone.main.zone_id
   name    = each.value.name
   type    = each.value.type
   ttl     = 60

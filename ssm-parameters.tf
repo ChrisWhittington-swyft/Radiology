@@ -172,7 +172,7 @@ resource "aws_ssm_parameter" "env_argocd_hosts" {
 
   name  = "/terraform/envs/${each.key}/argocd/host"
   type  = "String"
-  value = "${local.environments[each.key].argocd_subdomain}.${local.base_domain}"
+  value = local.argocd_hosts[each.key]
 
   tags = {
     Environment = each.key

@@ -44,6 +44,11 @@ spec:
           defaultDashboardsEnabled: true
           defaultDashboardsTimezone: UTC
 
+          # Set default home dashboard
+          grafana.ini:
+            dashboards:
+              default_home_dashboard_path: /tmp/dashboards/default/k8s-resources-cluster.json
+
           # Enable sidecar to watch for ConfigMaps with dashboards
           sidecar:
             dashboards:

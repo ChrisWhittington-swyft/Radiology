@@ -48,10 +48,8 @@ spec:
           sidecar:
             dashboards:
               enabled: true
-              defaultFolderName: "General"
-              label: grafana_dashboard
-              labelValue: "1"
-              searchNamespace: ALL
+              folder: /tmp/dashboards
+              defaultFolderName: "default"
 
           # Provision dashboards from grafana.com
           dashboardProviders:
@@ -65,7 +63,7 @@ spec:
                   disableDeletion: false
                   editable: true
                   options:
-                    path: /var/lib/grafana/dashboards/default
+                    path: /tmp/dashboards
 
           dashboards:
             default:

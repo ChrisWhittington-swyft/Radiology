@@ -1,0 +1,88 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 56.6.2
+    chart: kube-prometheus-stack
+    helm:
+      values: |
+        prometheus:
+          prometheusSpec:
+            retention: 15d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 50Gi
+                  storageClassName: gp3
+            additionalScrapeConfigs:
+              - job_name: 'yace-cloudwatch'
+                static_configs:
+                  - targets: ['yace-exporter:5000']
+
+        grafana:
+          enabled: true
+          adminPassword: changeme
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - grafana-dev.nymbl.host
+          persistence:
+            enabled: true
+            storageClassName: gp3
+            size: 10Gi
+
+        alertmanager:
+          enabled: true
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              group_by: ['alertname', 'cluster', 'service']
+              group_wait: 10s
+              group_interval: 10s
+              repeat_interval: 12h
+              receiver: 'sns-forwarder'
+            receivers:
+              - name: 'sns-forwarder'
+                webhook_configs:
+                  - url: 'http://alertmanager-sns-forwarder:9087/alert'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-infra
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/BeNYMBL/ria-application.git
+    targetRevision: HEAD
+    path: apps/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

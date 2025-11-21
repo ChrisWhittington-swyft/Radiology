@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  - namespace.yaml
+  - yace-deployment.yaml
+  - yace-service.yaml
+  - yace-configmap.yaml
+  - sns-forwarder-deployment.yaml
+  - sns-forwarder-service.yaml

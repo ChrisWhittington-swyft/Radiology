@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yace-config
+  namespace: monitoring
+data:
+  config.yml: |
+    apiVersion: v1alpha1
+    sts-region: us-east-1
+    discovery:
+      exportedTagsOnMetrics:
+        rds:
+          - Name
+          - Environment
+        kafka:
+          - Name
+          - Environment
+      jobs:
+        - type: rds
+          regions:
+            - us-east-1
+          searchTags:
+            - key: Environment
+              value: dev
+          metrics:
+            - name: CPUUtilization
+              statistics:
+                - Average
+                - Maximum
+              period: 300
+              length: 600
+            - name: DatabaseConnections
+              statistics:
+                - Average
+                - Maximum
+              period: 300
+              length: 600
+            - name: FreeableMemory
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: FreeStorageSpace
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: ReadLatency
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: WriteLatency
+              statistics:
+                - Average
+              period: 300
+              length: 600
+
+        - type: kafka
+          regions:
+            - us-east-1
+          searchTags:
+            - key: Environment
+              value: dev
+          metrics:
+            - name: CpuUser
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: MemoryUsed
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: KafkaDataLogsDiskUsed
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: BytesInPerSec
+              statistics:
+                - Sum
+              period: 300
+              length: 600
+            - name: BytesOutPerSec
+              statistics:
+                - Sum
+              period: 300
+              length: 600
+
+        - type: elasticache
+          regions:
+            - us-east-1
+          searchTags:
+            - key: Environment
+              value: dev
+          metrics:
+            - name: CPUUtilization
+              statistics:
+                - Average
+              period: 300
+              length: 600
+            - name: NetworkBytesIn
+              statistics:
+                - Sum
+              period: 300
+              length: 600
+            - name: NetworkBytesOut
+              statistics:
+                - Sum
+              period: 300
+              length: 600
+            - name: CurrConnections
+              statistics:
+                - Average
+              period: 300
+              length: 600

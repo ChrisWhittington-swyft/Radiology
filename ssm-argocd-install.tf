@@ -63,19 +63,27 @@ content = jsonencode({
           # Ensure namespace exists
           "kubectl get ns \"$NS\" 2>/dev/null || kubectl create ns \"$NS\"",
 
-          # Helm install/upgrade
+          # Helm install/upgrade - create values file with proper URL
           "helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true",
           "helm repo update >/dev/null 2>&1 || true",
+          "cat > /tmp/argocd-values.yaml <<EOF",
+          "global:",
+          "  domain: $HOST",
+          "configs:",
+          "  cm:",
+          "    url: https://$HOST",
+          "  params:",
+          "    server.insecure: true",
+          "    server.rootpath: /",
+          "    server.basehref: /",
+          "server:",
+          "  insecure: true",
+          "  service:",
+          "    type: ClusterIP",
+          "EOF",
           "helm upgrade --install argocd argo/argo-cd \\",
           "  --namespace \"$NS\" --create-namespace \\",
-          "  --set server.insecure=true \\",
-          "  --set server.service.type=ClusterIP \\",
-          "  --set configs.params.\"server\\.insecure\"=true \\",
-          "  --set configs.params.\"server\\.rootpath\"=/ \\",
-          "  --set configs.params.\"server\\.basehref\"=/ \\",
-          "  --set \"global.domain=$HOST\" \\",
-          "  --set-string \"configs.cm.url=https://$HOST\" \\",
-          "  --set 'server.ingress.hosts[0]'=\"$HOST\" \\",
+          "  --values /tmp/argocd-values.yaml \\",
           "  --wait --timeout 10m",
 
           # Wait for argocd-server Service to exist (avoid race with next step)

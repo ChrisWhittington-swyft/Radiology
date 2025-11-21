@@ -74,7 +74,7 @@ content = jsonencode({
           "  --set configs.params.\"server\\.rootpath\"=/ \\",
           "  --set configs.params.\"server\\.basehref\"=/ \\",
           "  --set \"global.domain=$HOST\" \\",
-          "  --set \"configs.cm.url=https://$HOST\" \\",
+          "  --set-string \"configs.cm.url=https://$HOST\" \\",
           "  --set 'server.ingress.hosts[0]'=\"$HOST\" \\",
           "  --wait --timeout 10m",
 

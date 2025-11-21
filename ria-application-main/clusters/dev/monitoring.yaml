@@ -40,6 +40,51 @@ spec:
             storageClassName: gp3
             size: 10Gi
 
+          # Set default home dashboard
+          defaultDashboardsEnabled: true
+          defaultDashboardsTimezone: UTC
+
+          grafana.ini:
+            dashboards:
+              default_home_dashboard_path: /tmp/dashboards/k8s-cluster-monitoring.json
+
+          # Provision dashboards from grafana.com
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: 'default'
+                  orgId: 1
+                  folder: ''
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /tmp/dashboards
+
+          dashboards:
+            default:
+              k8s-cluster-monitoring:
+                gnetId: 15757
+                revision: 1
+                datasource: Prometheus
+              node-exporter:
+                gnetId: 1860
+                revision: 31
+                datasource: Prometheus
+              k8s-api-server:
+                gnetId: 15761
+                revision: 1
+                datasource: Prometheus
+              argocd:
+                gnetId: 14584
+                revision: 1
+                datasource: Prometheus
+              nginx-ingress:
+                gnetId: 9614
+                revision: 1
+                datasource: Prometheus
+
         alertmanager:
           enabled: true
           config:

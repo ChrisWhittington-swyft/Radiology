@@ -44,10 +44,10 @@ spec:
           defaultDashboardsEnabled: true
           defaultDashboardsTimezone: UTC
 
-          # Set default home dashboard
+          # Set default home dashboard to Kubernetes Compute Resources Cluster
           grafana.ini:
             dashboards:
-              default_home_dashboard_path: /tmp/dashboards/default/k8s-resources-cluster.json
+              default_home_dashboard_path: /var/lib/grafana/dashboards/default/k8s-resources-cluster.json
 
           # Enable sidecar to watch for ConfigMaps with dashboards
           sidecar:

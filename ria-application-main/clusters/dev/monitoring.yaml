@@ -44,12 +44,28 @@ spec:
           defaultDashboardsEnabled: false
           defaultDashboardsTimezone: UTC
 
-          # Disable sidecar
+          # Enable dashboard downloader sidecar
           sidecar:
             dashboards:
-              enabled: false
+              enabled: true
+              label: grafana_dashboard
+              labelValue: "1"
+              searchNamespace: ALL
 
-          # Provision dashboards from grafana.com
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: 'default'
+                  orgId: 1
+                  folder: ''
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /tmp/dashboards
+
+          # Download dashboards from grafana.com
           dashboards:
             default:
               k8s-cluster-monitoring:
@@ -58,7 +74,7 @@ spec:
                 datasource: Prometheus
               node-exporter:
                 gnetId: 1860
-                revision: 1
+                revision: 37
                 datasource: Prometheus
               k8s-api-server:
                 gnetId: 15761

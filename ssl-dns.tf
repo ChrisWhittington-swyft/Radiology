@@ -66,7 +66,7 @@ resource "aws_route53_record" "argocd" {
   for_each = toset(local.enabled_environments)
 
   provider        = aws.dns
-  zone_id         = data.aws_route53_zone.vytalmed.zone_id
+  zone_id         = data.aws_route53_zone.main.zone_id
   name            = local.argocd_hosts[each.key]
   type            = "CNAME"
   ttl             = 60
@@ -81,7 +81,7 @@ resource "aws_route53_record" "app_subdomain" {
   for_each = toset(local.enabled_environments)
 
   provider        = aws.dns
-  zone_id         = data.aws_route53_zone.vytalmed.zone_id
+  zone_id         = data.aws_route53_zone.main.zone_id
   name            = local.environments[each.key].app_subdomain
   type            = "CNAME"
   ttl             = 60
@@ -99,7 +99,7 @@ resource "aws_route53_record" "bastion_windows" {
   }
 
   provider = aws.dns
-  zone_id  = data.aws_route53_zone.vytalmed.zone_id
+  zone_id  = data.aws_route53_zone.main.zone_id
   name     = "bastion.${local.global_config.base_domain}"
   type     = "A"
   ttl      = 60

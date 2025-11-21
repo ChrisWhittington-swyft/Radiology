@@ -44,6 +44,15 @@ spec:
           defaultDashboardsEnabled: true
           defaultDashboardsTimezone: UTC
 
+          # Enable sidecar for dashboard provisioning
+          sidecar:
+            dashboards:
+              enabled: true
+              defaultFolderName: "General"
+              label: grafana_dashboard
+              labelValue: "1"
+              searchNamespace: ALL
+
           # Provision dashboards from grafana.com
           dashboardProviders:
             dashboardproviders.yaml:

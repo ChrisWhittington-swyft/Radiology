@@ -62,24 +62,29 @@ spec:
             default:
               k8s-cluster-monitoring:
                 gnetId: 15757
-                revision: 1
-                datasource: Prometheus
+                datasource:
+                  - name: DS_PROMETHEUS
+                    value: Prometheus
               node-exporter:
                 gnetId: 1860
-                revision: 31
-                datasource: Prometheus
+                datasource:
+                  - name: DS_PROMETHEUS
+                    value: Prometheus
               k8s-api-server:
                 gnetId: 15761
-                revision: 1
-                datasource: Prometheus
+                datasource:
+                  - name: DS_PROMETHEUS
+                    value: Prometheus
               argocd:
                 gnetId: 14584
-                revision: 1
-                datasource: Prometheus
+                datasource:
+                  - name: DS_PROMETHEUS
+                    value: Prometheus
               nginx-ingress:
                 gnetId: 9614
-                revision: 1
-                datasource: Prometheus
+                datasource:
+                  - name: DS_PROMETHEUS
+                    value: Prometheus
 
         alertmanager:
           enabled: true

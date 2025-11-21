@@ -91,6 +91,21 @@ resource "aws_route53_record" "app_subdomain" {
   depends_on = [aws_ssm_association.backend_secret_now]
 }
 
+# Grafana host per environment → Each env's NLB
+resource "aws_route53_record" "grafana" {
+  for_each = toset(local.enabled_environments)
+
+  provider        = aws.dns
+  zone_id         = data.aws_route53_zone.main.zone_id
+  name            = "grafana-${each.key}.${local.global_config.base_domain}"
+  type            = "CNAME"
+  ttl             = 60
+  records         = [data.aws_ssm_parameter.ingress_nlb_dns[each.key].value]
+  allow_overwrite = true
+
+  depends_on = [aws_ssm_association.argocd_ingress_now]
+}
+
 # Windows Bastion DNS record → Elastic IP
 resource "aws_route53_record" "bastion_windows" {
   for_each = {

@@ -126,12 +126,11 @@ locals {
   # NLB Name
   ingress_nlb_name = "${lower(local.effective_tenant)}-${local.primary_env}-ing" # keep <=32 chars
 
-  # per-env Argo CD host map and the selected one for the primary env
+  # per-env Argo CD host map
   argocd_hosts = {
     for env, _ in local.environments :
-    env => "argocd.${local.base_domain}"
+    env => env == local.primary_env ? "argocd.${local.base_domain}" : "argocd-${env}.${local.base_domain}"
   }
-  argocd_host = lookup(local.argocd_hosts, local.primary_env, "argocd.${local.base_domain}")
 }
 
 

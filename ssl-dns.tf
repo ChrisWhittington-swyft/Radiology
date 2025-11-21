@@ -61,14 +61,16 @@ resource "aws_acm_certificate_validation" "wildcard" {
 # DNS Records → NLB
 #############################################
 
-# ArgoCD host → Primary env NLB (shared ArgoCD for all envs)
+# ArgoCD host per environment → Each env's NLB
 resource "aws_route53_record" "argocd" {
+  for_each = toset(local.enabled_environments)
+
   provider        = aws.dns
   zone_id         = data.aws_route53_zone.vytalmed.zone_id
-  name            = local.argocd_host
+  name            = local.argocd_hosts[each.key]
   type            = "CNAME"
   ttl             = 60
-  records         = [data.aws_ssm_parameter.ingress_nlb_dns[local.primary_env].value]
+  records         = [data.aws_ssm_parameter.ingress_nlb_dns[each.key].value]
   allow_overwrite = true
 
   depends_on = [aws_ssm_association.argocd_ingress_now]

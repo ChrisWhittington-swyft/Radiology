@@ -129,7 +129,7 @@ locals {
   # per-env Argo CD host map
   argocd_hosts = {
     for env, _ in local.environments :
-    env => env == local.primary_env ? "argocd.${local.base_domain}" : "argocd-${env}.${local.base_domain}"
+    env => "argocd-${env}.${local.base_domain}"
   }
 }
 

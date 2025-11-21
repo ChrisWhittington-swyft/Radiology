@@ -60,6 +60,17 @@ content = jsonencode({
           "  echo \"[ArgoIngress] Waiting for argocd-server svc ($i/60)\"; sleep 5",
           "done",
 
+          # Wait for ingress-nginx admission webhook to be ready
+          "echo \"[ArgoIngress] Waiting for ingress-nginx admission webhook...\"",
+          "for i in $(seq 1 60); do",
+          "  ENDPOINTS=$(kubectl -n ingress-nginx get endpoints ingress-nginx-controller-admission -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)",
+          "  if [ -n \"$ENDPOINTS\" ]; then",
+          "    echo \"[ArgoIngress] Admission webhook ready\"",
+          "    break",
+          "  fi",
+          "  echo \"[ArgoIngress] Waiting for admission webhook endpoints ($i/60)\"; sleep 5",
+          "done",
+
           # Create Ingress
           "cat > /tmp/argocd-ingress.yaml <<'EOF'",
           "apiVersion: networking.k8s.io/v1",

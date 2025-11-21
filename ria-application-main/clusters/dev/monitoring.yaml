@@ -41,7 +41,7 @@ spec:
             size: 10Gi
 
           # Set default home dashboard
-          defaultDashboardsEnabled: true
+          defaultDashboardsEnabled: false
           defaultDashboardsTimezone: UTC
 
           # Enable sidecar for dashboard provisioning

@@ -4,14 +4,13 @@ data "aws_route53_zone" "vytalmed" {
   private_zone = false
 }
 
-# Read NLB DNS hostnames from SSM (updated by bootstrap script)
+# Read NLB DNS hostnames from SSM (written by bootstrap script after NLB creation)
 data "aws_ssm_parameter" "ingress_nlb_dns" {
   for_each = toset(local.enabled_environments)
 
-  name = "/terraform/envs/${each.key}/ingress_nlb_dns"
+  name = "/eks/${module.envs[each.key].cluster_name}/ingress_nlb_hostname"
 
   depends_on = [
-    aws_ssm_parameter.env_ingress_nlb_dns_placeholder,
     aws_ssm_association.bootstrap_ingress_now
   ]
 }
@@ -64,8 +63,6 @@ resource "aws_acm_certificate_validation" "wildcard" {
 
 # ArgoCD host → Primary env NLB (shared ArgoCD for all envs)
 resource "aws_route53_record" "argocd" {
-  count = data.aws_ssm_parameter.ingress_nlb_dns[local.primary_env].value != "pending" ? 1 : 0
-
   provider        = aws.dns
   zone_id         = data.aws_route53_zone.vytalmed.zone_id
   name            = local.argocd_host
@@ -79,10 +76,7 @@ resource "aws_route53_record" "argocd" {
 
 # Per-environment app subdomain → NLB
 resource "aws_route53_record" "app_subdomain" {
-  for_each = {
-    for env in local.enabled_environments : env => env
-    if data.aws_ssm_parameter.ingress_nlb_dns[env].value != "pending"
-  }
+  for_each = toset(local.enabled_environments)
 
   provider        = aws.dns
   zone_id         = data.aws_route53_zone.vytalmed.zone_id

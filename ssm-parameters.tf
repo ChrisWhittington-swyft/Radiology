@@ -68,24 +68,6 @@ resource "aws_ssm_parameter" "env_ingress_nlb_names" {
   }
 }
 
-resource "aws_ssm_parameter" "env_ingress_nlb_dns_placeholder" {
-  for_each = toset(local.enabled_environments)
-
-  name  = "/terraform/envs/${each.key}/ingress_nlb_dns"
-  type  = "String"
-  value = "pending"
-
-  tags = {
-    Environment = each.key
-    ManagedBy   = "Terraform"
-    Purpose     = "Ingress NLB DNS hostname for ${each.key} (updated by bootstrap script)"
-  }
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
 resource "aws_ssm_parameter" "env_dockerhub_user_params" {
   for_each = toset(local.enabled_environments)
 

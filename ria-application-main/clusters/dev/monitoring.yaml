@@ -65,35 +65,25 @@ spec:
                   disableDeletion: false
                   editable: true
                   options:
-                    path: /tmp/dashboards
+                    path: /var/lib/grafana/dashboards/default
 
           dashboards:
             default:
               k8s-cluster-monitoring:
                 gnetId: 15757
-                datasource:
-                  - name: DS_PROMETHEUS
-                    value: Prometheus
+                datasource: Prometheus
               node-exporter:
                 gnetId: 1860
-                datasource:
-                  - name: DS_PROMETHEUS
-                    value: Prometheus
+                datasource: Prometheus
               k8s-api-server:
                 gnetId: 15761
-                datasource:
-                  - name: DS_PROMETHEUS
-                    value: Prometheus
+                datasource: Prometheus
               argocd:
                 gnetId: 14584
-                datasource:
-                  - name: DS_PROMETHEUS
-                    value: Prometheus
+                datasource: Prometheus
               nginx-ingress:
                 gnetId: 9614
-                datasource:
-                  - name: DS_PROMETHEUS
-                    value: Prometheus
+                datasource: Prometheus
 
         alertmanager:
           enabled: true

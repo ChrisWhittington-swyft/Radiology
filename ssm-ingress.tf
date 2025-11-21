@@ -124,6 +124,16 @@ resource "aws_ssm_document" "bootstrap_ingress" {
             "  exit 1",
             "fi",
 
+            # Store NLB DNS hostname in SSM Parameter for Terraform to use
+            "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Writing NLB DNS hostname to SSM Parameter Store...\"",
+            "aws ssm put-parameter \\",
+            "  --name \"/terraform/envs/$${ENV}/ingress_nlb_dns\" \\",
+            "  --value \"$${LB}\" \\",
+            "  --type String \\",
+            "  --overwrite \\",
+            "  --region \"$${REGION}\" \\",
+            "  --tags \"Key=Environment,Value=$${ENV}\" \"Key=ManagedBy,Value=SSM-Bootstrap\" || echo \"Warning: Could not write SSM parameter\"",
+
             # Final status
             "echo \"\"",
             "echo \"========================================\"",

@@ -4,6 +4,18 @@ data "aws_route53_zone" "vytalmed" {
   private_zone = false
 }
 
+# Read NLB DNS hostnames from SSM (updated by bootstrap script)
+data "aws_ssm_parameter" "ingress_nlb_dns" {
+  for_each = toset(local.enabled_environments)
+
+  name = "/terraform/envs/${each.key}/ingress_nlb_dns"
+
+  depends_on = [
+    aws_ssm_parameter.env_ingress_nlb_dns_placeholder,
+    aws_ssm_association.bootstrap_ingress_now
+  ]
+}
+
 #############################################
 # Wildcard ACM cert in workload account/region
 #############################################
@@ -44,6 +56,43 @@ resource "aws_route53_record" "wildcard_validation" {
 resource "aws_acm_certificate_validation" "wildcard" {
   certificate_arn         = aws_acm_certificate.wildcard.arn
   validation_record_fqdns = [for r in aws_route53_record.wildcard_validation : r.fqdn]
+}
+
+#############################################
+# DNS Records → NLB
+#############################################
+
+# ArgoCD host → Primary env NLB (shared ArgoCD for all envs)
+resource "aws_route53_record" "argocd" {
+  count = data.aws_ssm_parameter.ingress_nlb_dns[local.primary_env].value != "pending" ? 1 : 0
+
+  provider        = aws.dns
+  zone_id         = data.aws_route53_zone.vytalmed.zone_id
+  name            = local.argocd_host
+  type            = "CNAME"
+  ttl             = 60
+  records         = [data.aws_ssm_parameter.ingress_nlb_dns[local.primary_env].value]
+  allow_overwrite = true
+
+  depends_on = [aws_ssm_association.argocd_ingress_now]
+}
+
+# Per-environment app subdomain → NLB
+resource "aws_route53_record" "app_subdomain" {
+  for_each = {
+    for env in local.enabled_environments : env => env
+    if data.aws_ssm_parameter.ingress_nlb_dns[env].value != "pending"
+  }
+
+  provider        = aws.dns
+  zone_id         = data.aws_route53_zone.vytalmed.zone_id
+  name            = local.environments[each.key].app_subdomain
+  type            = "CNAME"
+  ttl             = 60
+  records         = [data.aws_ssm_parameter.ingress_nlb_dns[each.key].value]
+  allow_overwrite = true
+
+  depends_on = [aws_ssm_association.backend_secret_now]
 }
 
 # Windows Bastion DNS record → Elastic IP

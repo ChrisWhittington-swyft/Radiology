@@ -44,6 +44,11 @@ spec:
           defaultDashboardsEnabled: false
           defaultDashboardsTimezone: UTC
 
+          # Disable sidecar
+          sidecar:
+            dashboards:
+              enabled: false
+
           # Provision dashboards from grafana.com
           dashboards:
             default:

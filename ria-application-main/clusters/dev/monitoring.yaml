@@ -63,7 +63,7 @@ spec:
                   options:
                     path: /var/lib/grafana/dashboards/grafana-dashboards-kubernetes
 
-                # Your extra community dashboards (1860, 14584, 9614)
+                # Your extra community dashboards
                 - name: custom
                   orgId: 1
                   folder: Custom
@@ -72,6 +72,16 @@ spec:
                   editable: true
                   options:
                     path: /var/lib/grafana/dashboards/custom
+
+                # AWS Services dashboards (RDS, Redis, Kafka)
+                - name: aws-services
+                  orgId: 1
+                  folder: AWS Services
+                  type: file
+                  disableDeletion: true
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/aws-services
 
           #################################################################
           # 2) Dashboards from URLs and grafana.com IDs
@@ -110,6 +120,29 @@ spec:
                 datasource: Prometheus
               nginx-ingress-9614:
                 gnetId: 9614
+                datasource: Prometheus
+
+            # AWS Services dashboards via YACE
+            aws-services:
+              rds-aurora-cloudwatch:
+                # 707 - AWS RDS
+                gnetId: 707
+                datasource: Prometheus
+              rds-aurora-detailed:
+                # 11264 - RDS / Aurora CloudWatch
+                gnetId: 11264
+                datasource: Prometheus
+              elasticache-redis:
+                # 11835 - ElastiCache Redis
+                gnetId: 11835
+                datasource: Prometheus
+              kafka-overview:
+                # 7589 - Kafka Overview
+                gnetId: 7589
+                datasource: Prometheus
+              kafka-exporter:
+                # 14012 - Kafka Exporter Overview
+                gnetId: 14012
                 datasource: Prometheus
 
           #################################################################

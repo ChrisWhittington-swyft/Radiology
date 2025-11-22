@@ -51,7 +51,7 @@ resource "aws_ssm_document" "deploy_yace" {
 
             "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Applying YACE manifests...\"",
 
-            "cat <<'EOF' | kubectl apply -f -",
+            "cat <<EOF | kubectl apply -f -",
             "apiVersion: v1",
             "kind: ServiceAccount",
             "metadata:",
@@ -61,7 +61,7 @@ resource "aws_ssm_document" "deploy_yace" {
             "    eks.amazonaws.com/role-arn: $${YACE_ROLE_ARN}",
             "EOF",
 
-            "cat <<'EOF' | kubectl apply -f -",
+            "cat <<EOF | kubectl apply -f -",
             "apiVersion: v1",
             "kind: ConfigMap",
             "metadata:",

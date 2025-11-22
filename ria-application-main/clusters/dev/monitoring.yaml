@@ -30,26 +30,101 @@ spec:
         grafana:
           enabled: true
           adminPassword: changeme
+
           ingress:
             enabled: true
             ingressClassName: nginx
             hosts:
               - grafana-dev.nymbl.host
+
           persistence:
             enabled: true
             storageClassName: gp3
             size: 10Gi
 
-          # Enable default Kubernetes dashboards from kube-prometheus-stack
-          defaultDashboardsEnabled: true
+          # Turn OFF the kube-prometheus-stack default dashboards so we
+          # don't get duplicate UIDs and the "restricted database access" error.
+          defaultDashboardsEnabled: false
           defaultDashboardsTimezone: UTC
 
-          # Set default home dashboard to Kubernetes Compute Resources Cluster
+          #################################################################
+          # 1) Dashboard providers → tell Grafana where to look on disk
+          #################################################################
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                # dotdc Kubernetes dashboards (15757, 15761, etc.)
+                - name: grafana-dashboards-kubernetes
+                  orgId: 1
+                  folder: Kubernetes
+                  type: file
+                  disableDeletion: true
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/grafana-dashboards-kubernetes
+
+                # Your extra community dashboards (1860, 14584, 9614)
+                - name: custom
+                  orgId: 1
+                  folder: Custom
+                  type: file
+                  disableDeletion: true
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/custom
+
+          #################################################################
+          # 2) Dashboards from URLs and grafana.com IDs
+          #################################################################
+          dashboards:
+            # dotdc Kubernetes views set (uses raw GitHub URLs)
+            grafana-dashboards-kubernetes:
+              k8s-views-global:
+                # 15757 - Kubernetes / Views / Global
+                url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/master/dashboards/k8s-views-global.json
+                token: ""
+              k8s-system-api-server:
+                # 15761 - Kubernetes / System / API Server
+                url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/master/dashboards/k8s-system-api-server.json
+                token: ""
+              k8s-views-namespaces:
+                # 15758 - Kubernetes / Views / Namespaces
+                url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/master/dashboards/k8s-views-namespaces.json
+                token: ""
+              k8s-views-nodes:
+                # 15759 - Kubernetes / Views / Nodes
+                url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/master/dashboards/k8s-views-nodes.json
+                token: ""
+              k8s-views-pods:
+                # 15760 - Kubernetes / Views / Pods
+                url: https://raw.githubusercontent.com/dotdc/grafana-dashboards-kubernetes/master/dashboards/k8s-views-pods.json
+                token: ""
+
+            # Your extra dashboards by ID
+            custom:
+              node-exporter-12486:
+                gnetId: 12486
+                datasource: Prometheus
+              k8s-cluster-monitoring-14584:
+                gnetId: 14584
+                datasource: Prometheus
+              nginx-ingress-9614:
+                gnetId: 9614
+                datasource: Prometheus
+
+          #################################################################
+          # 3) Set 15757 as the home dashboard
+          #################################################################
           grafana.ini:
             dashboards:
-              default_home_dashboard_path: /var/lib/grafana/dashboards/default/k8s-resources-cluster.json
+              # This file is created by the Helm chart when it downloads
+              # the URL above into /var/lib/grafana/dashboards/...
+              default_home_dashboard_path: /var/lib/grafana/dashboards/grafana-dashboards-kubernetes/k8s-views-global.json
 
-          # Enable sidecar to watch for ConfigMaps with dashboards
+          #################################################################
+          # 4) Sidecar for ConfigMap dashboards (optional, for future use)
+          #################################################################
           sidecar:
             dashboards:
               enabled: true
@@ -75,9 +150,11 @@ spec:
               - name: 'sns-forwarder'
                 webhook_configs:
                   - url: 'http://alertmanager-sns-forwarder:9087/alert'
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+
   syncPolicy:
     automated:
       prune: true

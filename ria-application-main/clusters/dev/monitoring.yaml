@@ -42,9 +42,8 @@ spec:
             storageClassName: gp3
             size: 10Gi
 
-          # Turn OFF the kube-prometheus-stack default dashboards so we
-          # don't get duplicate UIDs and the "restricted database access" error.
-          defaultDashboardsEnabled: false
+          # Enable the kube-prometheus-stack default dashboards
+          defaultDashboardsEnabled: true
           defaultDashboardsTimezone: UTC
 
           #################################################################

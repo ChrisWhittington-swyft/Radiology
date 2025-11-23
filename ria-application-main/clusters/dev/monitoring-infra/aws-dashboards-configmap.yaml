@@ -6,6 +6,8 @@ metadata:
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "/tmp/dashboards/AWS Services"
 data:
   rds-aurora-yace.json: |
     {
@@ -372,6 +374,8 @@ metadata:
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
+  annotations:
+    k8s-sidecar-target-directory: "/tmp/dashboards/AWS Services"
 data:
   elasticache-redis-yace.json: |
     {

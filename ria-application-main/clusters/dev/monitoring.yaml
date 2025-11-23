@@ -123,27 +123,8 @@ spec:
                 datasource: Prometheus
 
             # AWS Services dashboards via YACE
-            aws-services:
-              rds-aurora-cloudwatch:
-                # 707 - AWS RDS
-                gnetId: 707
-                datasource: Prometheus
-              rds-aurora-detailed:
-                # 11264 - RDS / Aurora CloudWatch
-                gnetId: 11264
-                datasource: Prometheus
-              elasticache-redis:
-                # 11835 - ElastiCache Redis
-                gnetId: 11835
-                datasource: Prometheus
-              kafka-overview:
-                # 7589 - Kafka Overview
-                gnetId: 7589
-                datasource: Prometheus
-              kafka-exporter:
-                # 14012 - Kafka Exporter Overview
-                gnetId: 14012
-                datasource: Prometheus
+            # Note: These community dashboards are NOT compatible with YACE
+            # Use ConfigMaps with custom dashboards instead (see aws-dashboards-configmap.yaml)
 
           #################################################################
           # 3) Set 15757 as the home dashboard

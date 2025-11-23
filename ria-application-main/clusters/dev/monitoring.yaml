@@ -26,6 +26,23 @@ spec:
               - job_name: 'yace-cloudwatch'
                 static_configs:
                   - targets: ['yace-exporter:5000']
+              - job_name: 'nginx-ingress-controller'
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names:
+                        - ingress-nginx
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+                    action: keep
+                    regex: controller
+                  - source_labels: [__meta_kubernetes_pod_container_port_number]
+                    action: keep
+                    regex: "10254"
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
 
         grafana:
           enabled: true
@@ -102,14 +119,11 @@ spec:
 
             # Your extra dashboards by ID
             custom:
-              node-exporter-12486:
-                gnetId: 12486
-                datasource: Prometheus
               k8s-cluster-monitoring-14584:
                 gnetId: 14584
                 datasource: Prometheus
-              nginx-ingress-9614:
-                gnetId: 9614
+              nginx-ingress-14314:
+                gnetId: 14314
                 datasource: Prometheus
 
             # AWS Services dashboards via YACE

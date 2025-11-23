@@ -73,16 +73,6 @@ spec:
                   options:
                     path: /var/lib/grafana/dashboards/custom
 
-                # AWS Services dashboards (RDS, Redis, Kafka)
-                - name: aws-services
-                  orgId: 1
-                  folder: AWS Services
-                  type: file
-                  disableDeletion: true
-                  editable: true
-                  options:
-                    path: /var/lib/grafana/dashboards/aws-services
-
           #################################################################
           # 2) Dashboards from URLs and grafana.com IDs
           #################################################################

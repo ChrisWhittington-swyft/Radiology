@@ -1,45 +1,23 @@
 #!/bin/bash
-set -e
-
 REGION="${1:-us-east-1}"
 CLUSTER="${2:-ria-dev-eks}"
 
-echo "=== Checking Prometheus Targets for YACE ==="
 aws eks update-kubeconfig --region $REGION --name $CLUSTER
 
+echo "=== Checking what's being scraped by Prometheus ==="
 echo
-echo "=== 1. YACE ServiceMonitor ==="
-kubectl get servicemonitor yace-exporter -n monitoring -o yaml
-
-echo
-echo "=== 2. YACE Service Endpoints ==="
-kubectl get endpoints yace-exporter -n monitoring
+echo "1. Check if node-exporter is running:"
+kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus-node-exporter
 
 echo
-echo "=== 3. Check if Prometheus is scraping YACE ==="
-echo "Fetching Prometheus targets..."
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 &
-PF_PID=$!
-sleep 5
-
-curl -s http://localhost:9090/api/v1/targets | jq -r '.data.activeTargets[] | select(.labels.job | contains("yace")) | "Job: \(.labels.job)\nState: \(.health)\nLast Scrape: \(.lastScrape)\nError: \(.lastError // "none")\n"'
-
-kill $PF_PID 2>/dev/null || true
+echo "2. Check if nginx-ingress metrics are available:"
+kubectl get svc -n ingress-nginx
 
 echo
-echo "=== 4. Query YACE metrics from Prometheus ==="
-kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 &
-PF_PID=$!
-sleep 5
-
-echo "RDS Metrics:"
-curl -s 'http://localhost:9090/api/v1/query?query=aws_rds_cpuutilization_average' | jq -r '.data.result[] | "  \(.metric.name): \(.value[1])"'
+echo "3. Check ArgoCD metrics service:"
+kubectl get svc -n argocd -l app.kubernetes.io/name=argocd-metrics
 
 echo
-echo "ElastiCache Metrics:"
-curl -s 'http://localhost:9090/api/v1/query?query=aws_elasticache_cpuutilization_average' | jq -r '.data.result[] | "  \(.metric.name): \(.value[1])"'
-
-kill $PF_PID 2>/dev/null || true
-
-echo
-echo "=== Done ==="
+echo "4. View Prometheus targets (port-forward and check manually):"
+echo "   kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090"
+echo "   Then visit: http://localhost:9090/targets"

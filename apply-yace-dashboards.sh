@@ -4,31 +4,31 @@ set -e
 REGION="${1:-us-east-1}"
 CLUSTER="${2:-ria-dev-eks}"
 
-echo "=== Applying YACE-compatible dashboards ==="
+echo "=== Updating YACE Dashboards ==="
 aws eks update-kubeconfig --region $REGION --name $CLUSTER
 
-echo
-echo "1. Applying ConfigMaps with custom dashboards..."
-kubectl apply -f ria-application-main/clusters/dev/infra/aws-dashboards-configmap.yaml
+# Create ConfigMap from the dashboard files
+kubectl create configmap grafana-dashboard-rds-aurora \
+  --from-file=rds-aurora-yace.json=grafana-rds-dashboard.json \
+  --namespace=monitoring \
+  --dry-run=client -o yaml | \
+  kubectl label --local -f - grafana_dashboard="1" --dry-run=client -o yaml | \
+  kubectl annotate --local -f - k8s-sidecar-target-directory="/tmp/dashboards/AWS Services" --dry-run=client -o yaml | \
+  kubectl apply -f -
 
 echo
-echo "2. Verify ConfigMaps are created..."
-kubectl get configmaps -n monitoring -l grafana_dashboard=1
-
-echo
-echo "3. Restart Grafana to pick up new dashboards..."
+echo "Restarting Grafana to reload dashboard..."
 kubectl rollout restart deployment -n monitoring kube-prometheus-stack-grafana
-
-echo
-echo "4. Wait for Grafana to be ready..."
 kubectl rollout status deployment -n monitoring kube-prometheus-stack-grafana --timeout=120s
 
 echo
-echo "=== Done! ==="
-echo
-echo "The following dashboards are now available in Grafana:"
-echo "  - AWS RDS Aurora (YACE)"
-echo "  - AWS ElastiCache Redis (YACE)"
-echo
-echo "Access Grafana at: https://grafana-dev.nymbl.host"
-echo "Navigate to: Dashboards > Browse > AWS Services folder"
+echo "=== Done! New RDS metrics should appear in ~2 minutes ==="
+echo "New panels added:"
+echo "  - ACU Utilization"
+echo "  - Serverless Database Capacity"
+echo "  - Deadlocks"
+echo "  - Network Throughput (Receive/Transmit)"
+echo "  - Storage Throughput (Read/Write)"
+echo "  - Storage IOPS (Read/Write)"
+echo "  - Disk Queue Depth"
+echo "  - Buffer Cache Hit Ratio"

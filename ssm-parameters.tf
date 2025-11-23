@@ -322,6 +322,21 @@ resource "aws_ssm_parameter" "env_backend_spring_ai_enabled" {
   }
 }
 
+# Kafka Configuration Parameters
+resource "aws_ssm_parameter" "env_kafka_enabled" {
+  for_each = toset(local.enabled_environments)
+
+  name  = "/terraform/envs/${each.key}/kafka_enabled"
+  type  = "String"
+  value = tostring(try(local.environments[each.key].kafka.enabled, false))
+
+  tags = {
+    Environment = each.key
+    ManagedBy   = "Terraform"
+    Purpose     = "Kafka enabled flag for ${each.key}"
+  }
+}
+
 # Karpenter Configuration Parameters
 resource "aws_ssm_parameter" "env_karpenter_enabled" {
   for_each = toset(local.enabled_environments)
